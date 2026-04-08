@@ -1,0 +1,57 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>cz.fit</groupId>
+  <artifactId>hotel-backend</artifactId>
+  <version>1.0-SNAPSHOT</version>
+  <packaging>war</packaging>
+
+  <properties>
+    <maven.compiler.release>17</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <liberty.runtime.version>24.0.0.12</liberty.runtime.version>
+  </properties>
+
+  <dependencies>
+    <!-- Jakarta EE API (server provides implementation) -->
+    <dependency>
+      <groupId>jakarta.platform</groupId>
+      <artifactId>jakarta.jakartaee-api</artifactId>
+      <version>10.0.0</version>
+      <scope>provided</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <!-- Jméno výsledného WAR -->
+    <finalName>hotel</finalName>
+
+    <plugins>
+
+      <!-- Kompilace Java 17 -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.12.1</version>
+        <configuration>
+          <release>17</release>
+        </configuration>
+      </plugin>
+
+      <!-- Open Liberty -->
+      <plugin>
+        <groupId>io.openliberty.tools</groupId>
+        <artifactId>liberty-maven-plugin</artifactId>
+        <version>3.10.3</version>
+        <configuration>
+          <runtimeVersion>${liberty.runtime.version}</runtimeVersion>
+          <serverName>defaultServer</serverName>
+          <appContextRoot>hotel</appContextRoot>
+        </configuration>
+      </plugin>
+
+    </plugins>
+  </build>
+</project>

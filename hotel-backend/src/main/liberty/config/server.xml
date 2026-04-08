@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<server description="Hotel REST API">
+
+  <featureManager>
+    <feature>servlet-6.0</feature>
+    <feature>restfulWS-3.1</feature>
+    <feature>cdi-4.0</feature>
+    <feature>jsonb-3.0</feature>
+    <feature>jdbc-4.2</feature>
+    <feature>persistence-3.1</feature>
+    <feature>appSecurity-5.0</feature>
+  </featureManager>
+
+  <httpEndpoint id="defaultHttpEndpoint" host="*" httpPort="9080" httpsPort="9443"/>
+
+  <!-- DB settings (edit here when local PostgreSQL credentials differ). -->
+  <variable name="hotel.db.host" defaultValue="localhost"/>
+  <!-- 5432 is used by a local PostgreSQL in WSL on this machine, Docker DB is exposed on 5433. -->
+  <variable name="hotel.db.port" defaultValue="5433"/>
+  <variable name="hotel.db.name" defaultValue="hotel"/>
+  <variable name="hotel.db.user" defaultValue="hotel"/>
+  <variable name="hotel.db.password" defaultValue="hotel"/>
+
+  <!-- PostgreSQL JDBC driver: jar máš v src/main/liberty/config/lib
+       at build time the liberty-maven-plugin copies it into the server/lib
+       directory.  Use ${server.root}/lib so the path is valid at runtime. -->
+    <library id="postgresqlLib">
+    <file name="${server.config.dir}/lib/postgresql-42.7.3.jar"/>
+    </library>
+
+    <dataSource id="HotelDS" jndiName="jdbc/hotel">
+    <jdbcDriver libraryRef="postgresqlLib"/>
+    <properties.postgresql
+        serverName="${hotel.db.host}"
+        portNumber="${hotel.db.port}"
+        databaseName="${hotel.db.name}"
+        user="${hotel.db.user}"
+        password="${hotel.db.password}"/>
+    </dataSource>
+    <basicRegistry id="basic" realm="BasicRealm">
+        <user name="admin" password="admin123" />
+        <user name="reception" password="reception123" />
+        <group name="administrator">
+            <member name="admin" />
+        </group>
+        <group name="RECEPTIONIST">
+            <member name="reception" />
+        </group>
+    </basicRegistry>
+</server>

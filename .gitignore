@@ -1,0 +1,26 @@
+.codex
+.snapshots/
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Backend
+hotel-backend/target/
+
+# Frontend
+hotel-frontend/node_modules/
+hotel-frontend/dist/
+hotel-frontend/dist-ssr/
+hotel-frontend/.vite/
+
+# Local env files
+.env
+.env.*
+*.local
