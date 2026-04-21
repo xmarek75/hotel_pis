@@ -1,0 +1,14 @@
+pridat kontroly pri upravach rezervace, checkout zaplaceno atd **
+pridat sluzby ke kazdemu pokoju, zatim jen k rezervaci, zkontrolovat entity napojeni **
+kontroly vstupu u authorizace, @..., *
+dodelat dokumenatci, plus komenty *
+pridat zpravu zakazniku***
+pridat prava pro manager **
+check stav kontejneru, a db, po znovuzapnuti, (nice to do)
+pridat types of room *
+presunout nick usera k odhlasit z dashboardu *
+
+sprava rezervacim, filtrace podle datumu vylepsit *
+
+sprava systemu---- neco si vymyslete co umi navic admin *
+upravit- admin vytvari manager, manager vytvari jen recepcni *
