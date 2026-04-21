@@ -2,7 +2,7 @@ pridat kontroly pri upravach rezervace, checkout zaplaceno atd **
 pridat sluzby ke kazdemu pokoju, zatim jen k rezervaci, zkontrolovat entity napojeni **
 kontroly vstupu u authorizace, @..., *
 dodelat dokumenatci, plus komenty *
-pridat zpravu zakazniku***
+pridat spravu zakazniku***
 pridat prava pro manager **
 check stav kontejneru, a db, po znovuzapnuti, (nice to do)
 pridat types of room *
@@ -12,3 +12,14 @@ sprava rezervacim, filtrace podle datumu vylepsit *
 
 sprava systemu---- neco si vymyslete co umi navic admin *
 upravit- admin vytvari manager, manager vytvari jen recepcni *
+
+filtrovani podle sluzeb pokoje **
+
+
+timea a @Crab model + repository,, 
+a tie funkcie (busines) pre to a @maxisa,  
+a @Hizrok tie endpointy, 
+pavel frontend zhorsit + pridat par veci
+
+
+drop and create oddelat z produkcni verze
