@@ -90,6 +90,7 @@ public class Service {
     }
 
     public BigDecimal calculatePrice(int quantity) {
+        // Cenik sluzeb ma byt robustni i pri nekorektnim mnozstvi z UI.
         int normalizedQuantity = Math.max(1, quantity);
         return price.multiply(BigDecimal.valueOf(normalizedQuantity));
     }

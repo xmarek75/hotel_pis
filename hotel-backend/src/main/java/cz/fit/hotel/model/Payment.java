@@ -8,8 +8,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "payment")
-@Inheritance(strategy = InheritanceType.JOINED)
-public abstract class Payment {
+public class Payment {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -23,10 +22,6 @@ public abstract class Payment {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private PaymentMethod paymentMethod;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
     private PaymentStatus status = PaymentStatus.PENDING;
 
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
@@ -37,22 +32,17 @@ public abstract class Payment {
     public Payment() {
     }
 
-    public Payment(BigDecimal amount, LocalDateTime paymentDate, PaymentMethod paymentMethod) {
+    public Payment(BigDecimal amount, LocalDateTime paymentDate) {
         this.amount = amount;
         this.paymentDate = paymentDate;
-        this.paymentMethod = paymentMethod;
     }
 
     public boolean processPayment() {
-        if (!verifyPaymentDetails()) {
-            this.status = PaymentStatus.FAILED;
-            return false;
-        }
+        // Jednoduchy payment model uz neeviduje typ-specificka metadata
+        // jako transactionId nebo receiptNumber, proto staci jen potvrdit platbu.
         this.status = PaymentStatus.PAID;
         return true;
     }
-
-    public abstract boolean verifyPaymentDetails();
 
     public Long getId() {
         return id;
@@ -72,14 +62,6 @@ public abstract class Payment {
 
     public void setPaymentDate(LocalDateTime paymentDate) {
         this.paymentDate = paymentDate;
-    }
-
-    public PaymentMethod getPaymentMethod() {
-        return paymentMethod;
-    }
-
-    public void setPaymentMethod(PaymentMethod paymentMethod) {
-        this.paymentMethod = paymentMethod;
     }
 
     public String getPaymentType() {

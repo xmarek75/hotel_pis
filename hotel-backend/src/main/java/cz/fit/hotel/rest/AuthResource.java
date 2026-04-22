@@ -46,7 +46,7 @@ public class AuthResource {
         String stored = employee.getPassword();
         boolean valid = passwordHasher.verify(request.password, stored);
         if (!valid && (stored != null && !passwordHasher.isHashFormat(stored))) {
-            // fallback for older plain-text rows
+            // Prechodovy fallback pro starsi demo radky ulozene jako plain text.
             valid = stored.equals(request.password);
         }
         if (!valid) {

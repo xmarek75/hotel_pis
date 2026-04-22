@@ -44,6 +44,8 @@ public class Reservation {
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
+    // Frontend pri vytvareni/prehledovych odpovedich pracuje primarne s ID,
+    // proto si entita nese i transient pole vedle JPA vazeb.
     @Transient
     private Long roomId;
 
@@ -68,6 +70,7 @@ public class Reservation {
     @JsonbTransient
     private Employee employee;
 
+    // Service items serializujeme ven, aby frontend videl vybrane doplnkove sluzby.
     @OneToMany(mappedBy = "reservation", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<ServiceItem> serviceItems = new HashSet<>();
 
@@ -131,6 +134,7 @@ public class Reservation {
     }
 
     public BigDecimal calculateTotalPrice() {
+        // Cena rezervace je vzdy odvozena z aktualne prirazeneho pokoje a snapshotu sluzeb.
         long nights = Math.max(1, getReservationLength());
         BigDecimal roomPart = room == null || room.getPricePerNight() == null
                 ? BigDecimal.ZERO
@@ -225,6 +229,7 @@ public class Reservation {
     }
 
     public Long getRoomId() {
+        // Pri cteni preferujeme realnou JPA vazbu, pri create/update payloadu fallbackneme na transient ID.
         if (room != null && room.getId() != null) {
             return room.getId();
         }
@@ -236,6 +241,7 @@ public class Reservation {
     }
 
     public String getRoomNumber() {
+        // Odvozene gettery jsou tu kvuli jednoduchym odpovedim pro frontend bez extra DTO vrstvy.
         return room != null ? room.getNumber() : null;
     }
 

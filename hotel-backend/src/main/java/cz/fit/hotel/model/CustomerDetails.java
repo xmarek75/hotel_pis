@@ -10,6 +10,7 @@ public class CustomerDetails {
     private long reservationCount;
     private LocalDate lastStayDate;
     private boolean hasActiveReservation;
+    // Seznam se vraci jako kopie, aby response objekt nebyl zvenci modifikovan sdilenou referenci.
     private List<Reservation> customerReservations = new ArrayList<>();
 
     public CustomerDetails() {

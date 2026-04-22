@@ -55,17 +55,8 @@ public class ServiceManager {
 
     @Transactional
     public void delete(Long id) {
-        Service service = serviceRepository.findById(id);
-        if (service == null) {
-            throw new IllegalArgumentException("Service not found");
-        }
-
-        List<Long> reservationIds = service.getServiceItems().stream()
-                .map(item -> item != null && item.getReservation() != null ? item.getReservation().getId() : null)
-                .filter(java.util.Objects::nonNull)
-                .distinct()
-                .sorted(Comparator.naturalOrder())
-                .collect(Collectors.toList());
+        Service service = requireService(id);
+        List<Long> reservationIds = findReservationIdsUsingService(service);
 
         if (!reservationIds.isEmpty()) {
             throw new IllegalArgumentException(
@@ -87,5 +78,22 @@ public class ServiceManager {
         if (service.getPrice() == null || service.getPrice().compareTo(BigDecimal.ZERO) < 0) {
             throw new IllegalArgumentException("Service price must be >= 0");
         }
+    }
+
+    private Service requireService(Long id) {
+        Service service = serviceRepository.findById(id);
+        if (service == null) {
+            throw new IllegalArgumentException("Service not found");
+        }
+        return service;
+    }
+
+    private List<Long> findReservationIdsUsingService(Service service) {
+        return service.getServiceItems().stream()
+                .map(item -> item != null && item.getReservation() != null ? item.getReservation().getId() : null)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .sorted(Comparator.naturalOrder())
+                .collect(Collectors.toList());
     }
 }

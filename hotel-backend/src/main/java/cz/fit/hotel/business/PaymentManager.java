@@ -1,11 +1,8 @@
 package cz.fit.hotel.business;
 
 import cz.fit.hotel.model.Payment;
-import cz.fit.hotel.model.PaymentMethod;
 import cz.fit.hotel.model.PaymentStatus;
 import cz.fit.hotel.model.Reservation;
-import cz.fit.hotel.model.CardPayment;
-import cz.fit.hotel.model.CashPayment;
 import cz.fit.hotel.repository.PaymentRepository;
 import cz.fit.hotel.repository.ReservationRepository;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -38,27 +35,11 @@ public class PaymentManager {
 
     @Transactional
     public Payment create(Payment payment) {
-        if (payment == null) {
-            throw new IllegalArgumentException("Payment payload is required");
-        }
-        if (payment.getReservation() == null || payment.getReservation().getId() == null) {
-            throw new IllegalArgumentException("Reservation is required");
-        }
-        if (payment.getAmount() == null || payment.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Payment amount must be greater than 0");
-        }
-        if (payment.getPaymentMethod() == null) {
-            throw new IllegalArgumentException("Payment method is required");
-        }
+        validateCreateRequest(payment);
 
-        Reservation reservation = reservationRepository.findById(payment.getReservation().getId());
-        if (reservation == null) {
-            throw new IllegalArgumentException("Reservation not found");
-        }
-
-        Payment managedPayment = materializePayment(payment);
+        Reservation reservation = requireReservation(payment.getReservation().getId());
+        Payment managedPayment = payment;
         managedPayment.setAmount(payment.getAmount());
-        managedPayment.setPaymentMethod(payment.getPaymentMethod());
         managedPayment.setStatus(payment.getStatus() == null ? PaymentStatus.PENDING : payment.getStatus());
         managedPayment.setPaymentDate(payment.getPaymentDate());
         payment.setReservation(reservation);
@@ -66,6 +47,8 @@ public class PaymentManager {
         if (managedPayment.getPaymentDate() == null) {
             managedPayment.setPaymentDate(LocalDateTime.now());
         }
+        // processPayment zde nevola externi platebni branu, jen overi, ze konkretni typ platby
+        // ma potrebna pole a synchronizuje finalni status.
         if (!managedPayment.processPayment()) {
             throw new IllegalArgumentException("Payment details are invalid for the selected payment type");
         }
@@ -77,30 +60,37 @@ public class PaymentManager {
 
     @Transactional
     public void delete(Long id) {
-        Payment payment = paymentRepository.findById(id);
-        if (payment == null) {
-            throw new IllegalArgumentException("Payment not found");
-        }
+        Payment payment = requirePayment(id);
         Long reservationId = payment.getReservation().getId();
         paymentRepository.delete(payment);
         reservationManager.refreshPaymentStatus(reservationId);
     }
 
-    private Payment materializePayment(Payment payment) {
-        if (payment instanceof CardPayment || payment instanceof CashPayment) {
-            return payment;
+    private void validateCreateRequest(Payment payment) {
+        if (payment == null) {
+            throw new IllegalArgumentException("Payment payload is required");
         }
+        if (payment.getReservation() == null || payment.getReservation().getId() == null) {
+            throw new IllegalArgumentException("Reservation is required");
+        }
+        if (payment.getAmount() == null || payment.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Payment amount must be greater than 0");
+        }
+    }
 
-        if (payment.getPaymentMethod() == PaymentMethod.CARD) {
-            CardPayment cardPayment = new CardPayment();
-            cardPayment.setTransactionId("TXN-" + System.currentTimeMillis());
-            return cardPayment;
+    private Reservation requireReservation(Long reservationId) {
+        Reservation reservation = reservationRepository.findById(reservationId);
+        if (reservation == null) {
+            throw new IllegalArgumentException("Reservation not found");
         }
-        if (payment.getPaymentMethod() == PaymentMethod.CASH) {
-            CashPayment cashPayment = new CashPayment();
-            cashPayment.setReceiptNumber("RCPT-" + System.currentTimeMillis());
-            return cashPayment;
+        return reservation;
+    }
+
+    private Payment requirePayment(Long id) {
+        Payment payment = paymentRepository.findById(id);
+        if (payment == null) {
+            throw new IllegalArgumentException("Payment not found");
         }
-        throw new IllegalArgumentException("Unsupported payment method");
+        return payment;
     }
 }

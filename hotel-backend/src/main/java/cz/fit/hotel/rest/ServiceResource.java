@@ -37,7 +37,7 @@ public class ServiceResource {
         try {
             return serviceManager.create(service);
         } catch (IllegalArgumentException ex) {
-            throw new BadRequestException(ex.getMessage());
+            throw badRequest(ex);
         }
     }
 
@@ -48,7 +48,7 @@ public class ServiceResource {
         try {
             return serviceManager.update(id, service);
         } catch (IllegalArgumentException ex) {
-            throw new BadRequestException(ex.getMessage());
+            throw badRequest(ex);
         }
     }
 
@@ -59,7 +59,11 @@ public class ServiceResource {
         try {
             serviceManager.delete(id);
         } catch (IllegalArgumentException ex) {
-            throw new BadRequestException(ex.getMessage());
+            throw badRequest(ex);
         }
+    }
+
+    private BadRequestException badRequest(IllegalArgumentException ex) {
+        return new BadRequestException(ex.getMessage());
     }
 }

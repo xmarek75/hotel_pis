@@ -30,10 +30,7 @@ public class CustomerManager {
     }
 
     public CustomerDetails getDetails(Long customerId) {
-        Customer customer = customerRepository.findById(customerId);
-        if (customer == null) {
-            throw new IllegalArgumentException("Customer not found");
-        }
+        Customer customer = requireCustomer(customerId);
 
         long reservationCount = customerRepository.countReservations(customerId);
         LocalDate lastStayDate = reservationRepository.findLastCheckoutByCustomerId(customerId);
@@ -52,10 +49,7 @@ public class CustomerManager {
 
     @Transactional
     public Customer update(Long id, Customer payload) {
-        Customer customer = customerRepository.findById(id);
-        if (customer == null) {
-            throw new IllegalArgumentException("Customer not found");
-        }
+        Customer customer = requireCustomer(id);
 
         if (payload.getName() != null && !payload.getName().isBlank()) {
             customer.setName(payload.getName());
@@ -76,10 +70,7 @@ public class CustomerManager {
 
     @Transactional
     public void delete(Long id) {
-        Customer customer = customerRepository.findById(id);
-        if (customer == null) {
-            throw new IllegalArgumentException("Customer not found");
-        }
+        Customer customer = requireCustomer(id);
         customerRepository.delete(customer);
     }
 
@@ -99,5 +90,13 @@ public class CustomerManager {
         if (customer.getPhone() == null || customer.getPhone().isBlank()) {
             throw new IllegalArgumentException("Customer phone is required");
         }
+    }
+
+    private Customer requireCustomer(Long id) {
+        Customer customer = customerRepository.findById(id);
+        if (customer == null) {
+            throw new IllegalArgumentException("Customer not found");
+        }
+        return customer;
     }
 }

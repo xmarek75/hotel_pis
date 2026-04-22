@@ -24,6 +24,7 @@ public class RoomManager {
 
     @Transactional
     public Room create(Room room) {
+        // Pokoj smi vzniknout jen s unikatnim cislem a minimalni sadou provoznich dat.
         if (room.getNumber() == null || room.getNumber().isBlank()) {
             throw new IllegalArgumentException("Room number is required");
         }
@@ -44,10 +45,7 @@ public class RoomManager {
 
     @Transactional
     public Room update(Long id, Room payload) {
-        Room room = roomRepository.findById(id);
-        if (room == null) {
-            throw new IllegalArgumentException("Room not found");
-        }
+        Room room = requireRoom(id);
 
         if (payload.getNumber() != null && !payload.getNumber().isBlank()) {
             Room sameNumber = roomRepository.findByNumber(payload.getNumber());
@@ -74,11 +72,16 @@ public class RoomManager {
 
     @Transactional
     public void deactivate(Long id) {
+        Room room = requireRoom(id);
+        room.setActive(false);
+        roomRepository.update(room);
+    }
+
+    private Room requireRoom(Long id) {
         Room room = roomRepository.findById(id);
         if (room == null) {
             throw new IllegalArgumentException("Room not found");
         }
-        room.setActive(false);
-        roomRepository.update(room);
+        return room;
     }
 }
