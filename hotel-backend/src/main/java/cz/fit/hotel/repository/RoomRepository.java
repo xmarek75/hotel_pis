@@ -39,17 +39,38 @@ public class RoomRepository {
         return em.merge(room);
     }
 
-    public long findUnavailableRoomsCount(Long roomId, LocalDate from, LocalDate to) {
-        return em.createQuery(
-                        "select count(r) from Reservation r " +
-                                "where r.room.id = :roomId " +
-                                "and r.status <> cz.fit.hotel.model.ReservationStatus.CANCELED " +
-                                "and r.checkInDate < :toDate and r.checkOutDate > :fromDate",
-                        Long.class
-                )
-                .setParameter("roomId", roomId)
-                .setParameter("fromDate", from)
-                .setParameter("toDate", to)
-                .getSingleResult();
+    public void delete(Room room) {
+        Room managed = em.merge(room);
+        em.remove(managed);
     }
+
+    public List<Room> findByTypeName(String typeName) {
+        return em.createQuery("select r from Room r where r.type.name = :name order by r.number", Room.class)
+                .setParameter("name", typeName)
+                .getResultList();
+    }
+
+    public List<Room> findByTypeId(Long typeId) {
+        return em.createQuery("select r from Room r where r.type.id = :typeId order by r.number", Room.class)
+                .setParameter("typeId", typeId)
+                .getResultList();
+    }
+
+    public List<Room> findByAllServiceIds(List<Long> serviceIds) {
+        if (serviceIds == null || serviceIds.isEmpty()) {
+            return findAll();
+        }
+
+        return em.createQuery("select r from Room r join r.services s where s.id in :serviceIds group by r.id having count(distinct s.id) = :size",Room.class)
+                .setParameter("serviceIds", serviceIds)
+                .setParameter("size", (long) serviceIds.size())
+                .getResultList();
+    }
+
+    public List<Room> findByCapacity(int guests) {
+        return em.createQuery("select r from Room r where r.capacity >= :guests", Room.class)
+                .setParameter("guests", guests)
+                .getResultList();
+    }
+
 }

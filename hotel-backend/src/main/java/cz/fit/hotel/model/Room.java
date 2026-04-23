@@ -21,8 +21,9 @@ public class Room {
     @Column(nullable = false, unique = true)
     private String number;
 
-    @Column(nullable = false)
-    private String type = "STANDARD";
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "type_id")
+    private RoomType type;
 
     @Column(nullable = false)
     private Integer capacity;
@@ -30,12 +31,13 @@ public class Room {
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal pricePerNight = BigDecimal.ZERO;
 
-    @Column(nullable = false)
-    private boolean active = true;
-
-    @JsonbTransient
-    @OneToMany(mappedBy = "room", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<RoomServiceItem> serviceItems = new HashSet<>();
+    @ManyToMany
+    @JoinTable(
+            name = "room_room_service",
+            joinColumns = @JoinColumn(name = "room_id"),
+            inverseJoinColumns = @JoinColumn(name = "service_id")
+    )
+    private Set<RoomService> services = new HashSet<>();
 
     @JsonbTransient
     @OneToMany(mappedBy = "room")
@@ -44,10 +46,11 @@ public class Room {
     public Room() {
     }
 
-    public Room(String number, Integer capacity, BigDecimal pricePerNight) {
+    public Room(String number, Integer capacity, BigDecimal pricePerNight, RoomType type) {
         this.number = number;
         this.capacity = capacity;
         this.pricePerNight = pricePerNight;
+        this.type = type;
     }
 
     public Long getId() {
@@ -62,11 +65,11 @@ public class Room {
         this.number = number;
     }
 
-    public String getType() {
+    public RoomType getType() {
         return type;
     }
 
-    public void setType(String type) {
+    public void setType(RoomType type) {
         this.type = type;
     }
 
@@ -86,59 +89,31 @@ public class Room {
         this.pricePerNight = pricePerNight;
     }
 
-    public boolean isActive() {
-        return active;
-    }
-
-    public void setActive(boolean active) {
-        this.active = active;
-    }
-
-    public Set<RoomServiceItem> getServiceItems() {
-        return serviceItems;
-    }
-
-    public void setServiceItems(Set<RoomServiceItem> serviceItems) {
-        this.serviceItems = serviceItems;
+    public Set<RoomService> getServices() {
+        return services;
     }
 
     public Set<Reservation> getReservations() {
         return reservations;
     }
 
-    public void setReservations(Set<Reservation> reservations) {
-        this.reservations = reservations;
+    public void addService(RoomService service) {
+        services.add(service);
+        service.getRooms().add(this);
     }
 
-    public boolean isAvailableForGuests(int guests) {
-        return active && guests > 0 && capacity != null && guests <= capacity;
+    public void removeService(RoomService service) {
+        services.remove(service);
+        service.getRooms().remove(this);
     }
 
-    public boolean isAvailableBetween(LocalDate from, LocalDate to) {
-        if (!active || from == null || to == null || !to.isAfter(from)) {
-            return false;
-        }
-        for (Reservation reservation : reservations) {
-            if (reservation == null || reservation.getStatus() == ReservationStatus.CANCELED) {
-                continue;
-            }
-            if (reservation.getCheckInDate() != null
-                    && reservation.getCheckOutDate() != null
-                    && reservation.getCheckInDate().isBefore(to)
-                    && reservation.getCheckOutDate().isAfter(from)) {
-                return false;
-            }
-        }
-        return true;
+    public void addReservation(Reservation reservation) {
+        reservations.add(reservation);
+        reservation.setRoom(this);
     }
 
-    public List<Service> getServices() {
-        List<Service> services = new ArrayList<>();
-        for (RoomServiceItem serviceItem : serviceItems) {
-            if (serviceItem != null && serviceItem.isActive() && serviceItem.getService() != null) {
-                services.add(serviceItem.getService());
-            }
-        }
-        return services;
+    public void removeReservation(Reservation reservation) {
+        reservations.remove(reservation);
+        reservation.setRoom(null);
     }
 }

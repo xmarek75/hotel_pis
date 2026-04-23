@@ -3,6 +3,7 @@ package cz.fit.hotel.model;
 import jakarta.json.bind.annotation.JsonbTransient;
 import jakarta.persistence.*;
 
+import java.time.Period;
 import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Set;
@@ -21,10 +22,10 @@ public class Customer {
     @Column(nullable = false)
     private LocalDate dateOfBirth;
 
-    @Column(nullable = false, unique = true)
+    @Column
     private String email;
 
-    @Column(nullable = false)
+    @Column(nullable = false, unique = true)
     private String phone;
 
     @JsonbTransient
@@ -81,7 +82,23 @@ public class Customer {
         return reservations;
     }
 
-    public void setReservations(Set<Reservation> reservations) {
-        this.reservations = reservations;
+    public void addReservation(Reservation r) {
+        reservations.add(r);
+        r.setCustomer(this);
+    }
+
+    public void removeReservation(Reservation r) {
+        reservations.remove(r);
+        r.setCustomer(null);
+    }
+
+    public Integer getCustomerAge() {
+        if (dateOfBirth == null) {
+            return null;
+        }
+        if (dateOfBirth.isAfter(LocalDate.now())) {
+            return null;
+        }
+        return Period.between(dateOfBirth, LocalDate.now()).getYears();
     }
 }

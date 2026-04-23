@@ -15,33 +15,37 @@ public class Payment {
     private Long id;
 
     @Column(nullable = false, precision = 12, scale = 2)
-    private BigDecimal amount = BigDecimal.ZERO;
+    private BigDecimal amount;
 
-    @Column(nullable = false)
+    @Column(nullable = false, updatable = false)
     private LocalDateTime paymentDate;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private PaymentStatus status = PaymentStatus.PENDING;
+    private PaymentMethod method;
 
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "reservation_id", nullable = false)
     @JsonbTransient
     private Reservation reservation;
 
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @JoinColumn(name = "employee_id", nullable = false)
+    @JsonbTransient
+    private Employee employee;
+
     public Payment() {
     }
 
-    public Payment(BigDecimal amount, LocalDateTime paymentDate) {
+    public Payment(BigDecimal amount, PaymentMethod method, Reservation reservation) {
         this.amount = amount;
-        this.paymentDate = paymentDate;
+        this.method = method;
+        this.reservation = reservation;
     }
 
-    public boolean processPayment() {
-        // Jednoduchy payment model uz neeviduje typ-specificka metadata
-        // jako transactionId nebo receiptNumber, proto staci jen potvrdit platbu.
-        this.status = PaymentStatus.PAID;
-        return true;
+    @PrePersist
+    public void prePersist() {
+        this.paymentDate = LocalDateTime.now();
     }
 
     public Long getId() {
@@ -60,20 +64,12 @@ public class Payment {
         return paymentDate;
     }
 
-    public void setPaymentDate(LocalDateTime paymentDate) {
-        this.paymentDate = paymentDate;
+    public PaymentMethod getMethod() {
+        return method;
     }
 
-    public String getPaymentType() {
-        return getClass().getSimpleName();
-    }
-
-    public PaymentStatus getStatus() {
-        return status;
-    }
-
-    public void setStatus(PaymentStatus status) {
-        this.status = status;
+    public void setMethod(PaymentMethod method) {
+        this.method = method;
     }
 
     public Reservation getReservation() {
@@ -82,5 +78,13 @@ public class Payment {
 
     public void setReservation(Reservation reservation) {
         this.reservation = reservation;
+    }
+
+    public Employee getEmployee() {
+        return employee;
+    }
+
+    public void setEmployee(Employee employee) {
+        this.employee = employee;
     }
 }

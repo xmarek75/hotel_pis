@@ -1,6 +1,7 @@
 package cz.fit.hotel.repository;
 
 import cz.fit.hotel.model.Employee;
+import cz.fit.hotel.model.Reservation;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -30,11 +31,10 @@ public class EmployeeRepository {
         return result.isEmpty() ? null : result.get(0);
     }
 
-    public Employee findFirstActive() {
-        List<Employee> result = em.createQuery("select e from Employee e where e.active = true order by e.id", Employee.class)
-                .setMaxResults(1)
+    public List<Reservation> findReservationsByEmployeeId(Long employeeId) {
+        return em.createQuery("select r from Reservation r where r.employee.id = :employeeId order by r.createdAt desc", Reservation.class)
+                .setParameter("employeeId", employeeId)
                 .getResultList();
-        return result.isEmpty() ? null : result.get(0);
     }
 
     public void save(Employee employee) {
@@ -46,6 +46,7 @@ public class EmployeeRepository {
     }
 
     public void delete(Employee employee) {
-        em.remove(employee);
+        Employee managed = em.merge(employee);
+        em.remove(managed);
     }
 }

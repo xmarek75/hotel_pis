@@ -5,7 +5,6 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 @ApplicationScoped
@@ -15,8 +14,7 @@ public class PaymentRepository {
     private EntityManager em;
 
     public List<Payment> findAll() {
-        return em.createQuery("select p from Payment p order by p.paymentDate desc", Payment.class)
-                .getResultList();
+        return em.createQuery("select p from Payment p order by p.paymentDate desc", Payment.class).getResultList();
     }
 
     public Payment findById(Long id) {
@@ -32,16 +30,29 @@ public class PaymentRepository {
     }
 
     public void delete(Payment payment) {
-        em.remove(payment);
+        Payment managed = em.merge(payment);
+        em.remove(managed);
     }
 
-    public BigDecimal sumByReservationId(Long reservationId) {
-        BigDecimal value = em.createQuery(
-                        "select coalesce(sum(p.amount), 0) from Payment p where p.reservation.id = :reservationId and p.status <> cz.fit.hotel.model.PaymentStatus.REFUNDED",
-                        BigDecimal.class
-                )
+    public List<Payment> findByReservationId(Long reservationId) {
+        return em.createQuery("select p from Payment p where p.reservation.id = :reservationId order by p.paymentDate desc", Payment.class)
+                .setParameter("reservationId", reservationId)
+                .getResultList();
+    }
+
+    public List<Payment> findByEmployeeId(Long employeeId) {
+        return em.createQuery("select p from Payment p where p.employee.id = :employeeId order by p.paymentDate desc", Payment.class)
+                .setParameter("employeeId", employeeId)
+                .getResultList();
+    }
+
+    public java.math.BigDecimal getTotalPaidForReservation(Long reservationId) {
+        java.math.BigDecimal result = em.createQuery(
+                        "select coalesce(sum(p.amount), 0.0) from Payment p where p.reservation.id = :reservationId",
+                        java.math.BigDecimal.class)
                 .setParameter("reservationId", reservationId)
                 .getSingleResult();
-        return value == null ? BigDecimal.ZERO : value;
+
+        return result;
     }
 }
