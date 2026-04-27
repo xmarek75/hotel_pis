@@ -84,9 +84,6 @@ public class EmployeeManager {
         if (employee.getUsername() == null || employee.getUsername().isBlank()) {
             throw new IllegalArgumentException("Employee username is required");
         }
-        if (employee.getContact() == null || employee.getContact().isBlank()) {
-            throw new IllegalArgumentException("Employee contact is required");
-        }
         if (employee.getPassword() == null || employee.getPassword().isBlank()) {
             throw new IllegalArgumentException("Employee password is required");
         }

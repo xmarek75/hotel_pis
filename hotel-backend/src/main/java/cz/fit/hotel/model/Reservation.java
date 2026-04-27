@@ -85,6 +85,10 @@ public class Reservation {
         return id;
     }
 
+    public void setId(Long id) {
+        this.id = id;
+    }
+
     @PrePersist
     public void prePersist() {
         this.createdAt = LocalDateTime.now();

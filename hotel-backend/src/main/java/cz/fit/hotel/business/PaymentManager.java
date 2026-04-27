@@ -40,18 +40,12 @@ public class PaymentManager {
         Reservation reservation = requireReservation(payment.getReservation().getId());
         Payment managedPayment = payment;
         managedPayment.setAmount(payment.getAmount());
-        managedPayment.setStatus(payment.getStatus() == null ? PaymentStatus.PENDING : payment.getStatus());
-        managedPayment.setPaymentDate(payment.getPaymentDate());
+        
         payment.setReservation(reservation);
         managedPayment.setReservation(reservation);
-        if (managedPayment.getPaymentDate() == null) {
-            managedPayment.setPaymentDate(LocalDateTime.now());
-        }
-        // processPayment zde nevola externi platebni branu, jen overi, ze konkretni typ platby
-        // ma potrebna pole a synchronizuje finalni status.
-        if (!managedPayment.processPayment()) {
-            throw new IllegalArgumentException("Payment details are invalid for the selected payment type");
-        }
+        
+        // No explicit status/processPayment validation per the updated Payment model.
+        // The PrePersist generates the date automatically or it defaults to current time.
 
         paymentRepository.save(managedPayment);
         reservationManager.refreshPaymentStatus(reservation.getId());
