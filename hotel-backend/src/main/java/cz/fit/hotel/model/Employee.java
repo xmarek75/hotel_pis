@@ -20,7 +20,6 @@ public class Employee {
     @Column(nullable = false, unique = true)
     private String username;
 
-    @Column(nullable = false)
     private String contact;
 
     @Column(nullable = false)
@@ -35,7 +34,7 @@ public class Employee {
     private boolean active = true;
 
     @JsonbTransient
-    @OneToMany(mappedBy = "employee")
+    @OneToMany(mappedBy = "employee", fetch = FetchType.LAZY)
     private Set<Reservation> reservations = new HashSet<>();
 
     public Employee() {
@@ -104,7 +103,8 @@ public class Employee {
         return reservations;
     }
 
-    public void setReservations(Set<Reservation> reservations) {
-        this.reservations = reservations;
+    public void addReservation(Reservation r) {
+        reservations.add(r);
+        r.setEmployee(this);
     }
 }

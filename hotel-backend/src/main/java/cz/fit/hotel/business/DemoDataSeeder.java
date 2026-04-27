@@ -45,6 +45,8 @@ public class DemoDataSeeder {
 
     @Transactional
     void onStartup(@Observes @Initialized(ApplicationScoped.class) Object ignored) {
+        // Seed je rozdeleny na maly "zaklad" a rozsahlejsi demo dataset.
+        // Zaklad zajisti, ze aplikace jde rovnou po startu otestovat.
         seedIfEmpty();
         seedExtendedDemoData();
     }
@@ -127,26 +129,23 @@ public class DemoDataSeeder {
         res3.setEmployee(employeeRepository.findById(e2.getId()));
         res3 = reservationManager.create(res3);
 
-        CardPayment p1 = new CardPayment();
+        Payment p1 = new Payment();
         p1.setAmount(new BigDecimal("100.00"));
         p1.setPaymentDate(LocalDateTime.now());
-        p1.setPaymentMethod(PaymentMethod.CARD);
-        p1.setTransactionId("DEMO-TXN-001");
         p1.setReservation(reservationRepository.findById(res1.getId()));
         p1.setStatus(PaymentStatus.PAID);
         paymentManager.create(p1);
 
-        CashPayment p2 = new CashPayment();
+        Payment p2 = new Payment();
         p2.setAmount(new BigDecimal("60.00"));
         p2.setPaymentDate(LocalDateTime.now());
-        p2.setPaymentMethod(PaymentMethod.CASH);
-        p2.setReceiptNumber("DEMO-RCPT-001");
         p2.setReservation(reservationRepository.findById(res2.getId()));
         p2.setStatus(PaymentStatus.PAID);
         paymentManager.create(p2);
     }
 
     private void seedExtendedDemoData() {
+        // Rozsirena data drzi dashboard pouzitelny i pri filtrovani, strankovani a testech obsazenosti.
         seedAdditionalRooms();
         seedAdditionalCustomers();
         seedAdditionalReservations();

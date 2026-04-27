@@ -42,47 +42,16 @@ public class ReservationManager {
     @Transactional
     public Reservation create(Reservation reservation) {
         validateDates(reservation);
+        Long roomId = extractRoomId(reservation);
+        Long customerId = extractCustomerId(reservation);
+        Long employeeId = extractEmployeeId(reservation);
 
-        Long roomId = reservation.getRoom() != null ? reservation.getRoom().getId() : reservation.getRoomId();
-        Long customerId = reservation.getCustomer() != null ? reservation.getCustomer().getId() : reservation.getCustomerId();
-        Long employeeId = reservation.getEmployee() != null ? reservation.getEmployee().getId() : reservation.getEmployeeId();
+        validateGuestCount(reservation.getNumberOfGuests());
 
-        if (roomId == null) {
-            throw new IllegalArgumentException("Room is required");
-        }
-        if (customerId == null) {
-            throw new IllegalArgumentException("Customer is required");
-        }
-        if (reservation.getNumberOfGuests() == null || reservation.getNumberOfGuests() <= 0) {
-            throw new IllegalArgumentException("Number of guests must be greater than 0");
-        }
-
-        Room room = roomRepository.findById(roomId);
-        if (room == null || !room.isActive()) {
-            throw new IllegalArgumentException("Room not found or inactive");
-        }
-        if (!room.isAvailableForGuests(reservation.getNumberOfGuests())) {
-            throw new IllegalArgumentException("Number of guests exceeds room capacity");
-        }
-
-        if (roomRepository.findUnavailableRoomsCount(room.getId(), reservation.getCheckInDate(), reservation.getCheckOutDate()) > 0) {
-            throw new IllegalArgumentException("Room is already reserved in the selected date range");
-        }
-
-        Customer customer = customerRepository.findById(customerId);
-        if (customer == null) {
-            throw new IllegalArgumentException("Customer not found");
-        }
-
-        Employee employee;
-        if (employeeId != null) {
-            employee = employeeRepository.findById(employeeId);
-        } else {
-            employee = employeeRepository.findFirstActive();
-        }
-        if (employee == null || !employee.isActive()) {
-            throw new IllegalArgumentException("Employee not found or inactive");
-        }
+        Room room = requireActiveRoom(roomId);
+        ensureRoomCanHostReservation(room, reservation);
+        Customer customer = requireCustomer(customerId);
+        Employee employee = resolveResponsibleEmployee(employeeId);
 
         reservation.assignRoom(room);
         reservation.setCustomer(customer);
@@ -114,10 +83,7 @@ public class ReservationManager {
 
     @Transactional
     public Reservation update(Long id, Reservation payload) {
-        Reservation reservation = reservationRepository.findById(id);
-        if (reservation == null) {
-            throw new IllegalArgumentException("Reservation not found");
-        }
+        Reservation reservation = requireReservation(id);
 
         boolean paymentStatusProvided = payload.getPaymentStatus() != null;
 
@@ -146,21 +112,11 @@ public class ReservationManager {
         validateDates(reservation);
 
         Room room = reservation.getRoom();
-        if (room == null || !room.isActive()) {
-            throw new IllegalArgumentException("Room not found or inactive");
+        if (room == null) {
+            throw new IllegalArgumentException("Room is required");
         }
-        if (reservation.getNumberOfGuests() == null || reservation.getNumberOfGuests() <= 0) {
-            throw new IllegalArgumentException("Number of guests must be greater than 0");
-        }
-        if (!room.isAvailableForGuests(reservation.getNumberOfGuests())) {
-            throw new IllegalArgumentException("Number of guests exceeds room capacity");
-        }
-
-        if (reservationRepository.hasRoomOverlapExcludingReservation(
-                room.getId(), reservation.getCheckInDate(), reservation.getCheckOutDate(), reservation.getId()
-        )) {
-            throw new IllegalArgumentException("Room is already reserved in the selected date range");
-        }
+        validateGuestCount(reservation.getNumberOfGuests());
+        ensureRoomCanHostReservationExceptSelf(room, reservation);
 
         reservation.setTotalPrice(reservation.calculateTotalPrice());
         Reservation updated = reservationRepository.update(reservation);
@@ -172,10 +128,7 @@ public class ReservationManager {
 
     @Transactional
     public Reservation refreshPaymentStatus(Long id) {
-        Reservation reservation = reservationRepository.findById(id);
-        if (reservation == null) {
-            throw new IllegalArgumentException("Reservation not found");
-        }
+        Reservation reservation = requireReservation(id);
 
         BigDecimal paid = paymentRepository.sumByReservationId(id);
         BigDecimal total = reservation.getTotalPrice() == null ? BigDecimal.ZERO : reservation.getTotalPrice();
@@ -193,10 +146,7 @@ public class ReservationManager {
 
     @Transactional
     public void delete(Long id) {
-        Reservation reservation = reservationRepository.findById(id);
-        if (reservation == null) {
-            throw new IllegalArgumentException("Reservation not found");
-        }
+        Reservation reservation = requireReservation(id);
         // Logical cancel instead of physical delete to avoid FK issues
         // (payments/service items can remain linked for audit/history).
         reservation.setStatus(ReservationStatus.CANCELED);
@@ -213,6 +163,8 @@ public class ReservationManager {
     }
 
     private void applyServiceItems(Reservation reservation, java.util.Set<ServiceItem> requestedItems) {
+        // Na vstupu staci service ID + quantity. Tady z requestu vyrobime konzistentni,
+        // plne navazane service items se snapshotem ceny v case rezervace.
         java.util.Set<ServiceItem> normalizedItems = new java.util.LinkedHashSet<>();
         if (requestedItems != null) {
             for (ServiceItem requestedItem : requestedItems) {
@@ -246,4 +198,86 @@ public class ReservationManager {
         reservation.setServiceItems(normalizedItems);
     }
 
+    private Reservation requireReservation(Long id) {
+        Reservation reservation = reservationRepository.findById(id);
+        if (reservation == null) {
+            throw new IllegalArgumentException("Reservation not found");
+        }
+        return reservation;
+    }
+
+    private Long extractRoomId(Reservation reservation) {
+        Long roomId = reservation.getRoom() != null ? reservation.getRoom().getId() : reservation.getRoomId();
+        if (roomId == null) {
+            throw new IllegalArgumentException("Room is required");
+        }
+        return roomId;
+    }
+
+    private Long extractCustomerId(Reservation reservation) {
+        Long customerId = reservation.getCustomer() != null ? reservation.getCustomer().getId() : reservation.getCustomerId();
+        if (customerId == null) {
+            throw new IllegalArgumentException("Customer is required");
+        }
+        return customerId;
+    }
+
+    private Long extractEmployeeId(Reservation reservation) {
+        return reservation.getEmployee() != null ? reservation.getEmployee().getId() : reservation.getEmployeeId();
+    }
+
+    private Room requireActiveRoom(Long roomId) {
+        Room room = roomRepository.findById(roomId);
+        if (room == null || !room.isActive()) {
+            throw new IllegalArgumentException("Room not found or inactive");
+        }
+        return room;
+    }
+
+    private Customer requireCustomer(Long customerId) {
+        Customer customer = customerRepository.findById(customerId);
+        if (customer == null) {
+            throw new IllegalArgumentException("Customer not found");
+        }
+        return customer;
+    }
+
+    private Employee resolveResponsibleEmployee(Long employeeId) {
+        Employee employee = employeeId != null
+                ? employeeRepository.findById(employeeId)
+                : employeeRepository.findFirstActive();
+        if (employee == null || !employee.isActive()) {
+            throw new IllegalArgumentException("Employee not found or inactive");
+        }
+        return employee;
+    }
+
+    private void validateGuestCount(Integer numberOfGuests) {
+        if (numberOfGuests == null || numberOfGuests <= 0) {
+            throw new IllegalArgumentException("Number of guests must be greater than 0");
+        }
+    }
+
+    private void ensureRoomCanHostReservation(Room room, Reservation reservation) {
+        if (!room.isAvailableForGuests(reservation.getNumberOfGuests())) {
+            throw new IllegalArgumentException("Number of guests exceeds room capacity");
+        }
+        if (roomRepository.findUnavailableRoomsCount(room.getId(), reservation.getCheckInDate(), reservation.getCheckOutDate()) > 0) {
+            throw new IllegalArgumentException("Room is already reserved in the selected date range");
+        }
+    }
+
+    private void ensureRoomCanHostReservationExceptSelf(Room room, Reservation reservation) {
+        if (!room.isActive()) {
+            throw new IllegalArgumentException("Room not found or inactive");
+        }
+        if (!room.isAvailableForGuests(reservation.getNumberOfGuests())) {
+            throw new IllegalArgumentException("Number of guests exceeds room capacity");
+        }
+        if (reservationRepository.hasRoomOverlapExcludingReservation(
+                room.getId(), reservation.getCheckInDate(), reservation.getCheckOutDate(), reservation.getId()
+        )) {
+            throw new IllegalArgumentException("Room is already reserved in the selected date range");
+        }
+    }
 }

@@ -20,6 +20,7 @@ public class PasswordHasher {
         if (rawPassword == null || rawPassword.isBlank()) {
             throw new IllegalArgumentException("Password is required");
         }
+        // Kazde heslo dostane novou sul, aby stejne heslo nevytvarelo stejny hash.
         byte[] salt = new byte[SALT_BYTES];
         new SecureRandom().nextBytes(salt);
         byte[] hash = derive(rawPassword.toCharArray(), salt, ITERATIONS, KEY_LENGTH_BITS);
@@ -45,6 +46,7 @@ public class PasswordHasher {
             byte[] salt = Base64.getDecoder().decode(parts[2]);
             byte[] expected = Base64.getDecoder().decode(parts[3]);
             byte[] actual = derive(rawPassword.toCharArray(), salt, iterations, expected.length * 8);
+            // Konstantni cas pomaha omezit timing side-channel pri porovnani hashe.
             return constantTimeEquals(expected, actual);
         } catch (Exception ex) {
             return false;

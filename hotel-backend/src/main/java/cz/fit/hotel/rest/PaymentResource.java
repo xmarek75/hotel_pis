@@ -1,10 +1,7 @@
 package cz.fit.hotel.rest;
 
 import cz.fit.hotel.business.PaymentManager;
-import cz.fit.hotel.model.CardPayment;
-import cz.fit.hotel.model.CashPayment;
 import cz.fit.hotel.model.Payment;
-import cz.fit.hotel.model.PaymentMethod;
 import cz.fit.hotel.model.PaymentStatus;
 import cz.fit.hotel.model.Reservation;
 import jakarta.annotation.security.RolesAllowed;
@@ -39,7 +36,11 @@ public class PaymentResource {
 
     @POST
     public Payment create(PaymentCreateRequest request) {
-        return paymentManager.create(toPayment(request));
+        try {
+            return paymentManager.create(toPayment(request));
+        } catch (IllegalArgumentException ex) {
+            throw new BadRequestException(ex.getMessage());
+        }
     }
 
     @DELETE
@@ -49,45 +50,18 @@ public class PaymentResource {
     }
 
     private Payment toPayment(PaymentCreateRequest request) {
-        if (request == null || request.reservationId == null || request.amount == null || request.paymentMethod == null) {
-            throw new BadRequestException("reservationId, amount and paymentMethod are required");
+        if (request == null || request.reservationId == null || request.amount == null) {
+            throw new BadRequestException("reservationId and amount are required");
         }
 
-        PaymentMethod paymentMethod;
-        try {
-            paymentMethod = PaymentMethod.valueOf(request.paymentMethod.trim());
-        } catch (IllegalArgumentException ex) {
-            throw new BadRequestException("Invalid payment method");
-        }
+        Payment payment = new Payment();
 
-        Payment payment = switch (paymentMethod) {
-            case CARD -> {
-                CardPayment cardPayment = new CardPayment();
-                cardPayment.setTransactionId(
-                        request.transactionId == null || request.transactionId.isBlank()
-                                ? "TXN-" + System.currentTimeMillis()
-                                : request.transactionId.trim()
-                );
-                yield cardPayment;
-            }
-            case CASH -> {
-                CashPayment cashPayment = new CashPayment();
-                cashPayment.setReceiptNumber(
-                        request.receiptNumber == null || request.receiptNumber.isBlank()
-                                ? "RCPT-" + System.currentTimeMillis()
-                                : request.receiptNumber.trim()
-                );
-                yield cashPayment;
-            }
-            default -> throw new BadRequestException("Unsupported payment method");
-        };
-
+        // Payment manager potrebuje odkaz na rezervaci; pro request staci lehky objekt jen s ID.
         Reservation reservation = new Reservation();
         reservation.setId(request.reservationId);
 
         payment.setReservation(reservation);
         payment.setAmount(request.amount);
-        payment.setPaymentMethod(paymentMethod);
         payment.setPaymentDate(request.paymentDate);
         if (request.status != null && !request.status.isBlank()) {
             try {
@@ -102,10 +76,7 @@ public class PaymentResource {
     public static class PaymentCreateRequest {
         public Long reservationId;
         public BigDecimal amount;
-        public String paymentMethod;
         public String status;
         public LocalDateTime paymentDate;
-        public String transactionId;
-        public String receiptNumber;
     }
 }

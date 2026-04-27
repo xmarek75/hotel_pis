@@ -23,6 +23,7 @@ public class SystemAdminManager {
     EmployeeRepository employeeRepository;
 
     public Map<String, Object> getSystemOverview() {
+        // Jednoduchy dashboard endpoint. Nepouziva agregacni SQL, protoze objem demo dat je maly.
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("rooms", roomRepository.findAll().size());
         result.put("reservations", reservationRepository.findAll().size());
@@ -32,6 +33,7 @@ public class SystemAdminManager {
     }
 
     public Map<String, String> backupData() {
+        // Zatim jen placeholder use-case, aby bylo jasne kde jednou napojit skutecny backup proces.
         Map<String, String> result = new LinkedHashMap<>();
         result.put("status", "OK");
         result.put("message", "Backup simulation endpoint - integrate real backup tooling here.");

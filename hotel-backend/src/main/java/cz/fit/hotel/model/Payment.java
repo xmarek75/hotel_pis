@@ -8,51 +8,45 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "payment")
-@Inheritance(strategy = InheritanceType.JOINED)
-public abstract class Payment {
+public class Payment {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(nullable = false, precision = 12, scale = 2)
-    private BigDecimal amount = BigDecimal.ZERO;
+    private BigDecimal amount;
 
-    @Column(nullable = false)
+    @Column(nullable = false, updatable = false)
     private LocalDateTime paymentDate;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private PaymentMethod paymentMethod;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private PaymentStatus status = PaymentStatus.PENDING;
+    private PaymentMethod method;
 
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "reservation_id", nullable = false)
     @JsonbTransient
     private Reservation reservation;
 
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @JoinColumn(name = "employee_id", nullable = false)
+    @JsonbTransient
+    private Employee employee;
+
     public Payment() {
     }
 
-    public Payment(BigDecimal amount, LocalDateTime paymentDate, PaymentMethod paymentMethod) {
+    public Payment(BigDecimal amount, PaymentMethod method, Reservation reservation) {
         this.amount = amount;
-        this.paymentDate = paymentDate;
-        this.paymentMethod = paymentMethod;
+        this.method = method;
+        this.reservation = reservation;
     }
 
-    public boolean processPayment() {
-        if (!verifyPaymentDetails()) {
-            this.status = PaymentStatus.FAILED;
-            return false;
-        }
-        this.status = PaymentStatus.PAID;
-        return true;
+    @PrePersist
+    public void prePersist() {
+        this.paymentDate = LocalDateTime.now();
     }
-
-    public abstract boolean verifyPaymentDetails();
 
     public Long getId() {
         return id;
@@ -70,28 +64,12 @@ public abstract class Payment {
         return paymentDate;
     }
 
-    public void setPaymentDate(LocalDateTime paymentDate) {
-        this.paymentDate = paymentDate;
+    public PaymentMethod getMethod() {
+        return method;
     }
 
-    public PaymentMethod getPaymentMethod() {
-        return paymentMethod;
-    }
-
-    public void setPaymentMethod(PaymentMethod paymentMethod) {
-        this.paymentMethod = paymentMethod;
-    }
-
-    public String getPaymentType() {
-        return getClass().getSimpleName();
-    }
-
-    public PaymentStatus getStatus() {
-        return status;
-    }
-
-    public void setStatus(PaymentStatus status) {
-        this.status = status;
+    public void setMethod(PaymentMethod method) {
+        this.method = method;
     }
 
     public Reservation getReservation() {
@@ -100,5 +78,13 @@ public abstract class Payment {
 
     public void setReservation(Reservation reservation) {
         this.reservation = reservation;
+    }
+
+    public Employee getEmployee() {
+        return employee;
+    }
+
+    public void setEmployee(Employee employee) {
+        this.employee = employee;
     }
 }

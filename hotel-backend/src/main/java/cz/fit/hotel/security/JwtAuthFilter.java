@@ -25,7 +25,7 @@ public class JwtAuthFilter implements ContainerRequestFilter {
         if (path == null) {
             path = "";
         }
-        // Keep login endpoint public regardless of base/context path formatting.
+        // Login musi zustat verejny i pri ruznem context rootu nebo reverzni proxy.
         if (path.equals("auth/login") || path.endsWith("/auth/login") || path.contains("auth/login")) {
             return; // login endpoint is public
         }
@@ -71,7 +71,7 @@ public class JwtAuthFilter implements ContainerRequestFilter {
             if (role.equals(this.role)) {
                 return true;
             }
-            // legacy mapping in app: ADMINISTRATOR user should satisfy @RolesAllowed("administrator")
+            // Historicky je v casti aplikace role male "administrator" a jinde enum "ADMINISTRATOR".
             return "ADMINISTRATOR".equals(this.role) && "administrator".equals(role);
         }
 
