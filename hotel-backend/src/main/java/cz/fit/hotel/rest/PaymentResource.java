@@ -2,6 +2,8 @@ package cz.fit.hotel.rest;
 
 import cz.fit.hotel.business.PaymentManager;
 import cz.fit.hotel.model.Payment;
+import cz.fit.hotel.model.PaymentMethod;
+import cz.fit.hotel.model.Employee;
 import cz.fit.hotel.model.Reservation;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
@@ -61,8 +63,19 @@ public class PaymentResource {
         payment.setReservation(reservation);
         payment.setAmount(request.amount);
         
-        // request.status/paymentDate are removed because new Payment model uses @PrePersist for date
-        // and doesn't store 'status'.
+        if (request.method != null && !request.method.isBlank()) {
+            try {
+                payment.setMethod(PaymentMethod.valueOf(request.method.trim().toUpperCase()));
+            } catch (IllegalArgumentException ex) {
+                throw new BadRequestException("Invalid payment method");
+            }
+        }
+        
+        if (request.employeeId != null) {
+            Employee employee = new Employee();
+            employee.setId(request.employeeId);
+            payment.setEmployee(employee);
+        }
 
         return payment;
     }
@@ -70,7 +83,7 @@ public class PaymentResource {
     public static class PaymentCreateRequest {
         public Long reservationId;
         public BigDecimal amount;
-        public String status;
-        public LocalDateTime paymentDate;
+        public String method;
+        public Long employeeId;
     }
 }

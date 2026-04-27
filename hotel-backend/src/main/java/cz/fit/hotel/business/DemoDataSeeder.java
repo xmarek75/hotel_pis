@@ -149,14 +149,15 @@ public class DemoDataSeeder {
 
         Payment p1 = new Payment();
         p1.setAmount(new BigDecimal("100.00"));
-        // status is gone, date is handled by prepersist, just need to set required method and reservation
         p1.setMethod(PaymentMethod.CARD); 
+        p1.setEmployee(employeeRepository.findById(e1.getId()));
         p1.setReservation(reservationRepository.findById(res1.getId()));
         paymentManager.create(p1);
 
         Payment p2 = new Payment();
         p2.setAmount(new BigDecimal("60.00"));
         p2.setMethod(PaymentMethod.CASH);
+        p2.setEmployee(employeeRepository.findById(e1.getId()));
         p2.setReservation(reservationRepository.findById(res2.getId()));
         paymentManager.create(p2);
     }
