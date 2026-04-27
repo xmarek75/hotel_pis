@@ -2,7 +2,6 @@ package cz.fit.hotel.rest;
 
 import cz.fit.hotel.business.CustomerManager;
 import cz.fit.hotel.model.Customer;
-import cz.fit.hotel.model.CustomerDetails;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
@@ -28,12 +27,6 @@ public class CustomerResource {
     @Path("/{id}")
     public Customer one(@PathParam("id") Long id) {
         return customerManager.findById(id);
-    }
-
-    @GET
-    @Path("/{id}/details")
-    public CustomerDetails details(@PathParam("id") Long id) {
-        return customerManager.getDetails(id);
     }
 
     @POST
