@@ -8,7 +8,7 @@ export default function DashboardHeader({ viewTitle, activeView, setActiveView }
           <p className="dashboard-topbar__eyebrow">HOTEL MANAGMENT</p>
 
         </div>
-        <div className="dashboard-topbar__title">{viewTitle}</div>
+        
       </div>
 
       <div className="dashboard-topbar__section-label"></div>

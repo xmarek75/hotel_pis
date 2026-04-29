@@ -1634,7 +1634,7 @@ export default function Dashboard() {
 
         <div className="dashboard-wrap">
           <section className="dashboard-pagehead">
-            <p className="dashboard-pagehead__eyebrow">Hotel management</p>
+            
             <h1 className="dashboard-pagehead__title">{viewTitle}</h1>
           </section>
 

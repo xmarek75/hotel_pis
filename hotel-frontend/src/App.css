@@ -605,7 +605,7 @@
   color: rgba(237, 243, 251, 0.82);
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  font-size: 0.72rem;
+  font-size: 0.9rem;
   font-weight: 800;
 }
 
@@ -647,7 +647,7 @@
   min-height: 46px;
   padding: 0.72rem 0.9rem;
   font: inherit;
-  font-size: 0.95rem;
+  font-size: 1.05rem;
   font-weight: 700;
   line-height: 1.15;
   color: rgba(233, 241, 252, 0.78);
@@ -783,7 +783,7 @@
 .dashboard-pagehead__title {
   margin: 0;
   color: #11203a;
-  font-size: clamp(2rem, 3.8vw, 3.4rem);
+  font-size: clamp(1.8rem, 3.4vw, 3rem);
   line-height: 0.98;
   letter-spacing: -0.04em;
 }
