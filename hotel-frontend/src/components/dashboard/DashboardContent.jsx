@@ -244,6 +244,7 @@ export default function Dashboard() {
   const [occupancySettingsOpen, setOccupancySettingsOpen] = useState(false);
   const [occupancyCapacityMode, setOccupancyCapacityMode] = useState("all");
   const [occupancyCapacityValue, setOccupancyCapacityValue] = useState("4");
+  const [occupancyServiceIds, setOccupancyServiceIds] = useState([]);
   const [weekStart, setWeekStart] = useState(() => startOfDay(new Date()));
   const [selectedReservation, setSelectedReservation] = useState(null);
   const [reservationEditMode, setReservationEditMode] = useState(false);
@@ -473,22 +474,47 @@ export default function Dashboard() {
   }, [activeView]);
 
   const filteredOccupancyRooms = useMemo(() => {
-    if (occupancyCapacityMode === "all") {
-      return rooms;
-    }
-    const limit = Number(occupancyCapacityValue);
-    if (!Number.isFinite(limit) || limit <= 0) {
-      return rooms;
-    }
     return rooms.filter((room) => {
       const capacity = Number(room.capacity ?? 0);
-      if (!Number.isFinite(capacity) || capacity <= 0) return false;
-      if (occupancyCapacityMode === "exact") {
-        return capacity === limit;
+      if (!Number.isFinite(capacity) || capacity <= 0) {
+        return false;
       }
-      return capacity >= limit;
+
+      if (occupancyCapacityMode !== "all") {
+        const limit = Number(occupancyCapacityValue);
+        if (Number.isFinite(limit) && limit > 0) {
+          if (occupancyCapacityMode === "exact" && capacity !== limit) {
+            return false;
+          }
+          if (occupancyCapacityMode === "min" && capacity < limit) {
+            return false;
+          }
+        }
+      }
+
+      if (occupancyServiceIds.length > 0) {
+        const roomServiceIds = Array.isArray(room.services)
+          ? room.services.map((service) => String(service.id))
+          : [];
+        if (!occupancyServiceIds.every((serviceId) => roomServiceIds.includes(serviceId))) {
+          return false;
+        }
+      }
+
+      return true;
     });
-  }, [rooms, occupancyCapacityMode, occupancyCapacityValue]);
+  }, [rooms, occupancyCapacityMode, occupancyCapacityValue, occupancyServiceIds]);
+
+  function toggleOccupancyServiceFilter(serviceId, checked) {
+    const normalizedId = String(serviceId);
+    setOccupancyServiceIds((prev) => {
+      if (checked) {
+        if (prev.includes(normalizedId)) return prev;
+        return [...prev, normalizedId];
+      }
+      return prev.filter((id) => id !== normalizedId);
+    });
+  }
 
   // Klientska filtrace a razeni seznamu rezervaci pro sekci "Sprava rezervaci".
   const filteredReservations = useMemo(() => {
@@ -1624,6 +1650,9 @@ export default function Dashboard() {
               setOccupancyCapacityMode={setOccupancyCapacityMode}
               occupancyCapacityValue={occupancyCapacityValue}
               setOccupancyCapacityValue={setOccupancyCapacityValue}
+              occupancyServiceIds={occupancyServiceIds}
+              toggleOccupancyServiceFilter={toggleOccupancyServiceFilter}
+              roomServices={roomServices}
               filteredOccupancyRooms={filteredOccupancyRooms}
               rooms={rooms}
               goPrevWeek={goPrevWeek}

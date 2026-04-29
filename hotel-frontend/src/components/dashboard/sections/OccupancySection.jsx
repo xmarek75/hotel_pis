@@ -11,6 +11,9 @@ export default function OccupancySection({
   setOccupancyCapacityMode,
   occupancyCapacityValue,
   setOccupancyCapacityValue,
+  occupancyServiceIds,
+  toggleOccupancyServiceFilter,
+  roomServices,
   filteredOccupancyRooms,
   rooms,
   goPrevWeek,
@@ -94,6 +97,33 @@ export default function OccupancySection({
                       />
                     </label>
                   ) : null}
+                  <fieldset className="reservation-customer-box">
+                    <legend>Služby pokoje</legend>
+                    {roomServices.length === 0 ? (
+                      <div className="customer-search-hint">Nejsou k dispozici žádné pokojové služby.</div>
+                    ) : (
+                      <div className="new-customer-grid">
+                        {roomServices.map((service) => {
+                          const selected = occupancyServiceIds.includes(String(service.id));
+                          return (
+                            <label key={`occupancy-room-service-${service.id}`} className="service-toggle">
+                              <input
+                                type="checkbox"
+                                checked={selected}
+                                onChange={(e) => toggleOccupancyServiceFilter(service.id, e.target.checked)}
+                              />
+                              <div>
+                                <strong>{service.name}</strong>
+                                {service.description ? (
+                                  <div className="customer-search-hint">{service.description}</div>
+                                ) : null}
+                              </div>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </fieldset>
                   <p className="occupancy-settings__hint">
                     Zobrazeno {filteredOccupancyRooms.length} z {rooms.length} pokojů.
                   </p>
@@ -131,6 +161,16 @@ export default function OccupancySection({
         <p className="occupancy-note">
           Filtr pokojů: {occupancyCapacityMode === "exact" ? "kapacita přesně" : "kapacita minimálně"}{" "}
           {Number(occupancyCapacityValue) > 0 ? occupancyCapacityValue : "-"}.
+        </p>
+      ) : null}
+      {occupancyServiceIds.length > 0 ? (
+        <p className="occupancy-note">
+          Filtr služeb pokoje:{" "}
+          {roomServices
+            .filter((service) => occupancyServiceIds.includes(String(service.id)))
+            .map((service) => service.name)
+            .join(", ")}
+          .
         </p>
       ) : null}
 
