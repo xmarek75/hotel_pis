@@ -74,13 +74,34 @@ public class DemoDataSeeder {
         RoomType suiteType = new RoomType("SUITE");
         roomTypeRepository.save(suiteType);
 
+        RoomService wifi = new RoomService("WiFi", "High speed internet");
+        roomServiceRepository.save(wifi);
+
+        RoomService airConditioning = new RoomService("Klimatizace", "Individually controlled air conditioning");
+        roomServiceRepository.save(airConditioning);
+
+        RoomService babyCot = new RoomService("Detska postylka", "Baby cot available in the room");
+        roomServiceRepository.save(babyCot);
+
+        RoomService tv = new RoomService("Televize", "Flat screen TV");
+        roomServiceRepository.save(tv);
+
         Room r101 = new Room("101", 2, new BigDecimal("89.00"), standardType);
+        r101.addService(wifi);
+        r101.addService(tv);
         roomRepository.save(r101);
 
         Room r102 = new Room("102", 3, new BigDecimal("119.00"), deluxeType);
+        r102.addService(wifi);
+        r102.addService(airConditioning);
+        r102.addService(tv);
         roomRepository.save(r102);
 
         Room r201 = new Room("201", 4, new BigDecimal("149.00"), familyType);
+        r201.addService(wifi);
+        r201.addService(airConditioning);
+        r201.addService(babyCot);
+        r201.addService(tv);
         roomRepository.save(r201);
 
         Employee e1 = new Employee("Recepce", "reception", "+420777111222", EmployeeRole.RECEPTIONIST);
@@ -99,9 +120,6 @@ public class DemoDataSeeder {
 
         ExtraService wellness = new ExtraService("Wellness", new BigDecimal("20.00"), "Sauna and wellness access");
         extraServiceRepository.save(wellness);
-
-        RoomService wifi = new RoomService("WiFi", "High speed internet");
-        roomServiceRepository.save(wifi);
 
         Customer c1 = new Customer("Jan Kral", LocalDate.of(1990, 5, 12), "jan.kral@email.cz", "+420601111111");
         customerRepository.save(c1);

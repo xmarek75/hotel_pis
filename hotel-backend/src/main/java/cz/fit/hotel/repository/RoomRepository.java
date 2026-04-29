@@ -15,12 +15,28 @@ public class RoomRepository {
     private EntityManager em;
 
     public List<Room> findAll() {
-        return em.createQuery("select r from Room r order by r.number", Room.class)
+        return em.createQuery(
+                        "select distinct r from Room r " +
+                                "left join fetch r.type " +
+                                "left join fetch r.services " +
+                                "order by r.number",
+                        Room.class
+                )
                 .getResultList();
     }
 
     public Room findById(Long id) {
-        return em.find(Room.class, id);
+        List<Room> matches = em.createQuery(
+                        "select distinct r from Room r " +
+                                "left join fetch r.type " +
+                                "left join fetch r.services " +
+                                "where r.id = :id",
+                        Room.class
+                )
+                .setParameter("id", id)
+                .setMaxResults(1)
+                .getResultList();
+        return matches.isEmpty() ? null : matches.get(0);
     }
 
     public Room findByNumber(String number) {

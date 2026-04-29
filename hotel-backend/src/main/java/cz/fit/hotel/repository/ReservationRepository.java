@@ -17,11 +17,36 @@ public class ReservationRepository {
     private EntityManager em;
 
     public List<Reservation> findAll() {
-        return em.createQuery("select r from Reservation r order by r.createdAt desc", Reservation.class).getResultList();
+        return em.createQuery(
+                        "select distinct r from Reservation r " +
+                                "left join fetch r.room room " +
+                                "left join fetch room.type " +
+                                "left join fetch r.customer " +
+                                "left join fetch r.employee " +
+                                "left join fetch r.extraServices es " +
+                                "left join fetch es.service " +
+                                "order by r.createdAt desc",
+                        Reservation.class
+                )
+                .getResultList();
     }
 
     public Reservation findById(Long id) {
-        return em.find(Reservation.class, id);
+        List<Reservation> matches = em.createQuery(
+                        "select distinct r from Reservation r " +
+                                "left join fetch r.room room " +
+                                "left join fetch room.type " +
+                                "left join fetch r.customer " +
+                                "left join fetch r.employee " +
+                                "left join fetch r.extraServices es " +
+                                "left join fetch es.service " +
+                                "where r.id = :id",
+                        Reservation.class
+                )
+                .setParameter("id", id)
+                .setMaxResults(1)
+                .getResultList();
+        return matches.isEmpty() ? null : matches.get(0);
     }
 
     public void save(Reservation reservation) {

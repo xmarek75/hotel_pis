@@ -112,6 +112,12 @@ function formatMoney(value) {
   return new Intl.NumberFormat("cs-CZ", { style: "currency", currency: "EUR" }).format(num);
 }
 
+function roomTypeName(type) {
+  if (!type) return "";
+  if (typeof type === "string") return type;
+  return type.name ?? "";
+}
+
 function normalizeServiceSelections(items) {
   if (!Array.isArray(items)) return [];
   return items
@@ -127,7 +133,7 @@ function mapReservationServiceItems(items) {
   if (!Array.isArray(items)) return [];
   return items
     .map((item) => {
-      const serviceId = item?.service?.id != null ? String(item.service.id) : "";
+      const serviceId = item?.extraService?.id != null ? String(item.extraService.id) : "";
       const quantity = Math.max(1, Number(item?.quantity ?? 1));
       return serviceId ? { serviceId, quantity } : null;
     })
@@ -136,7 +142,7 @@ function mapReservationServiceItems(items) {
 
 function buildReservationServicePayload(items) {
   return normalizeServiceSelections(items).map((item) => ({
-    service: { id: Number(item.serviceId) },
+    extraService: { id: Number(item.serviceId) },
     quantity: Number(item.quantity),
   }));
 }
@@ -213,6 +219,7 @@ export default function Dashboard() {
   const [rooms, setRooms] = useState([]);
   const [reservations, setReservations] = useState([]);
   const [services, setServices] = useState([]);
+  const [roomServices, setRoomServices] = useState([]);
   const [reservationFilters, setReservationFilters] = useState({
     search: "",
     status: "ALL",
@@ -258,6 +265,7 @@ export default function Dashboard() {
     capacity: 2,
     pricePerNight: "",
     active: true,
+    serviceIds: [],
   });
   const [roomStatus, setRoomStatus] = useState({ type: "idle", message: "" });
   const [serviceEditor, setServiceEditor] = useState(null);
@@ -340,6 +348,18 @@ export default function Dashboard() {
           Authorization: authHeader,
           Accept: "application/json",
         };
+
+        function ensureOk(response, label) {
+          if (response.status === 401) {
+            logout();
+            navigate("/login", { replace: true });
+            throw new Error("Přihlášení vypršelo, přihlas se prosím znovu.");
+          }
+          if (!response.ok) {
+            throw new Error(`${label} selhalo (${response.status})`);
+          }
+        }
+
         const [roomsRes, reservationsRes, customersRes, servicesRes] = await Promise.all([
           fetch("/api/rooms", { headers }),
           fetch("/api/reservations", { headers }),
@@ -347,23 +367,25 @@ export default function Dashboard() {
           fetch("/api/services", { headers }),
         ]);
 
-        if (!roomsRes.ok) {
-          throw new Error(`Načtení pokojů selhalo (${roomsRes.status})`);
-        }
-        if (!reservationsRes.ok) {
-          throw new Error(`Načtení rezervací selhalo (${reservationsRes.status})`);
-        }
-        if (!customersRes.ok) {
-          throw new Error(`Načtení zákazníků selhalo (${customersRes.status})`);
-        }
-        if (!servicesRes.ok) {
-          throw new Error(`Načtení služeb selhalo (${servicesRes.status})`);
-        }
+        ensureOk(roomsRes, "Načtení pokojů");
+        ensureOk(reservationsRes, "Načtení rezervací");
+        ensureOk(customersRes, "Načtení zákazníků");
+        ensureOk(servicesRes, "Načtení služeb");
 
         const roomsData = await roomsRes.json();
         const reservationsData = await reservationsRes.json();
         const customersData = await customersRes.json();
         const servicesData = await servicesRes.json();
+
+        let roomServicesData = [];
+        try {
+          const roomServicesRes = await fetch("/api/room-services", { headers });
+          if (roomServicesRes.ok) {
+            roomServicesData = await roomServicesRes.json();
+          }
+        } catch {
+          roomServicesData = [];
+        }
 
         const activeRooms = Array.isArray(roomsData)
           ? roomsData.filter((room) => room.active !== false)
@@ -371,12 +393,17 @@ export default function Dashboard() {
         const safeReservations = Array.isArray(reservationsData) ? reservationsData : [];
         const safeCustomers = Array.isArray(customersData) ? customersData : [];
         const safeServices = Array.isArray(servicesData) ? servicesData : [];
+        const safeRoomServices = Array.isArray(roomServicesData) ? roomServicesData : [];
         let safeEmployees = [];
         if (role === "administrator") {
           const employeesRes = await fetch("/api/employees", { headers });
           if (employeesRes.ok) {
             const employeesData = await employeesRes.json();
             safeEmployees = Array.isArray(employeesData) ? employeesData : [];
+          } else if (employeesRes.status === 401) {
+            logout();
+            navigate("/login", { replace: true });
+            throw new Error("Přihlášení vypršelo, přihlas se prosím znovu.");
           } else if (employeesRes.status !== 401 && employeesRes.status !== 403) {
             throw new Error(`Načtení zaměstnanců selhalo (${employeesRes.status})`);
           }
@@ -387,6 +414,7 @@ export default function Dashboard() {
           setReservations(safeReservations);
           setCustomers(safeCustomers);
           setServices(safeServices);
+          setRoomServices(safeRoomServices);
           setEmployees(safeEmployees);
         }
       } catch (err) {
@@ -396,6 +424,7 @@ export default function Dashboard() {
           setReservations([]);
           setCustomers([]);
           setServices([]);
+          setRoomServices([]);
           setEmployees([]);
         }
       } finally {
@@ -407,7 +436,7 @@ export default function Dashboard() {
     return () => {
       ignore = true;
     };
-  }, [authHeader, role]);
+  }, [authHeader, role, logout, navigate]);
 
   // Odvozena data pro UI: dny v kalendari, popisky a titul stranky.
   const weekDays = useMemo(() => {
@@ -1009,25 +1038,26 @@ export default function Dashboard() {
       capacity: 2,
       pricePerNight: "",
       active: true,
+      serviceIds: [],
     });
   }
 
-  function openCreateService() {
-    setServiceEditor({ mode: "create", serviceId: null });
+  function openCreateService(kind = "hotel") {
+    setServiceEditor({ mode: "create", serviceId: null, kind });
     setServiceStatus({ type: "idle", message: "" });
     setServiceForm({
       name: "",
-      price: "",
+      price: kind === "hotel" ? "" : 0,
       description: "",
     });
   }
 
-  function openEditService(service) {
-    setServiceEditor({ mode: "edit", serviceId: service.id });
+  function openEditService(kind, service) {
+    setServiceEditor({ mode: "edit", serviceId: service.id, kind });
     setServiceStatus({ type: "idle", message: "" });
     setServiceForm({
       name: service.name ?? "",
-      price: service.price ?? "",
+      price: kind === "hotel" ? (service.price ?? "") : 0,
       description: service.description ?? "",
     });
   }
@@ -1044,20 +1074,31 @@ export default function Dashboard() {
   function validateServiceForm() {
     if (!serviceForm.name?.trim()) return "Název služby je povinný.";
     if (!serviceForm.description?.trim()) return "Popis služby je povinný.";
+    if (serviceEditor?.kind === "room") return "";
     const price = Number(serviceForm.price);
     if (Number.isNaN(price) || price < 0) return "Cena služby musí být číslo >= 0.";
     return "";
   }
 
   async function refreshServices() {
-    const servicesRes = await fetch("/api/services", {
-      headers: { Authorization: authHeader, Accept: "application/json" },
-    });
+    const [servicesRes, roomServicesRes] = await Promise.all([
+      fetch("/api/services", {
+        headers: { Authorization: authHeader, Accept: "application/json" },
+      }),
+      fetch("/api/room-services", {
+        headers: { Authorization: authHeader, Accept: "application/json" },
+      }),
+    ]);
     if (!servicesRes.ok) {
       throw new Error(`Načtení služeb selhalo (${servicesRes.status})`);
     }
+    if (!roomServicesRes.ok) {
+      throw new Error(`Načtení pokojových služeb selhalo (${roomServicesRes.status})`);
+    }
     const servicesData = await servicesRes.json();
+    const roomServicesData = await roomServicesRes.json();
     setServices(Array.isArray(servicesData) ? servicesData : []);
+    setRoomServices(Array.isArray(roomServicesData) ? roomServicesData : []);
   }
 
   async function submitServiceEditor() {
@@ -1069,18 +1110,25 @@ export default function Dashboard() {
 
     setServiceStatus({ type: "loading", message: "Ukládám službu..." });
     try {
-      const payload = {
-        name: serviceForm.name.trim(),
-        description: serviceForm.description.trim(),
-        price: Number(serviceForm.price),
-      };
+      const isRoomService = serviceEditor?.kind === "room";
+      const payload = isRoomService
+        ? {
+            name: serviceForm.name.trim(),
+            description: serviceForm.description.trim(),
+          }
+        : {
+            name: serviceForm.name.trim(),
+            description: serviceForm.description.trim(),
+            price: Number(serviceForm.price),
+          };
       const headers = {
         Authorization: authHeader,
         Accept: "application/json",
         "Content-Type": "application/json",
       };
       const isEdit = serviceEditor?.mode === "edit" && serviceEditor.serviceId != null;
-      const url = isEdit ? `/api/services/${serviceEditor.serviceId}` : "/api/services";
+      const baseUrl = isRoomService ? "/api/room-services" : "/api/services";
+      const url = isEdit ? `${baseUrl}/${serviceEditor.serviceId}` : baseUrl;
       const method = isEdit ? "PUT" : "POST";
 
       const res = await fetch(url, {
@@ -1101,7 +1149,7 @@ export default function Dashboard() {
     }
   }
 
-  async function deleteService(service) {
+  async function deleteService(kind, service) {
     if (!service?.id) return;
     if (!window.confirm(`Opravdu chceš smazat službu ${service.name}?`)) {
       return;
@@ -1109,7 +1157,8 @@ export default function Dashboard() {
 
     setServiceStatus({ type: "loading", message: "Mažu službu..." });
     try {
-      const res = await fetch(`/api/services/${service.id}`, {
+      const baseUrl = kind === "room" ? "/api/room-services" : "/api/services";
+      const res = await fetch(`${baseUrl}/${service.id}`, {
         method: "DELETE",
         headers: {
           Authorization: authHeader,
@@ -1124,18 +1173,20 @@ export default function Dashboard() {
       await refreshServices();
       setServiceStatus({ type: "success", message: "Služba byla smazána." });
 
-      setCreateForm((prev) => ({
-        ...prev,
-        serviceItems: normalizeServiceSelections(prev.serviceItems).filter(
-          (item) => String(item.serviceId) !== String(service.id)
-        ),
-      }));
-      setReservationEditForm((prev) => ({
-        ...prev,
-        serviceItems: normalizeServiceSelections(prev.serviceItems).filter(
-          (item) => String(item.serviceId) !== String(service.id)
-        ),
-      }));
+      if (kind !== "room") {
+        setCreateForm((prev) => ({
+          ...prev,
+          serviceItems: normalizeServiceSelections(prev.serviceItems).filter(
+            (item) => String(item.serviceId) !== String(service.id)
+          ),
+        }));
+        setReservationEditForm((prev) => ({
+          ...prev,
+          serviceItems: normalizeServiceSelections(prev.serviceItems).filter(
+            (item) => String(item.serviceId) !== String(service.id)
+          ),
+        }));
+      }
     } catch (err) {
       setServiceStatus({ type: "error", message: err.message || "Nepodařilo se smazat službu." });
     }
@@ -1146,10 +1197,11 @@ export default function Dashboard() {
     setRoomStatus({ type: "idle", message: "" });
     setRoomForm({
       number: room.number ?? "",
-      type: room.type ?? "STANDARD",
+      type: roomTypeName(room.type) || "STANDARD",
       capacity: room.capacity ?? 1,
       pricePerNight: room.pricePerNight ?? "",
       active: room.active !== false,
+      serviceIds: Array.isArray(room.services) ? room.services.map((service) => String(service.id)) : [],
     });
   }
 
@@ -1160,6 +1212,18 @@ export default function Dashboard() {
 
   function updateRoomForm(field, value) {
     setRoomForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  function toggleRoomService(serviceId, checked) {
+    const normalizedId = String(serviceId);
+    setRoomForm((prev) => {
+      const current = Array.isArray(prev.serviceIds) ? prev.serviceIds : [];
+      if (checked) {
+        if (current.includes(normalizedId)) return prev;
+        return { ...prev, serviceIds: [...current, normalizedId] };
+      }
+      return { ...prev, serviceIds: current.filter((id) => id !== normalizedId) };
+    });
   }
 
   function validateRoomForm() {
@@ -1380,9 +1444,12 @@ export default function Dashboard() {
     try {
       const payload = {
         number: roomForm.number.trim(),
-        type: roomForm.type.trim() || "STANDARD",
+        type: { name: roomForm.type.trim() || "STANDARD" },
         capacity: Number(roomForm.capacity),
         pricePerNight: Number(roomForm.pricePerNight),
+        services: (Array.isArray(roomForm.serviceIds) ? roomForm.serviceIds : []).map((serviceId) => ({
+          id: Number(serviceId),
+        })),
         active: !!roomForm.active,
       };
       const headers = {
@@ -1433,12 +1500,14 @@ export default function Dashboard() {
   return (
     <main className="dashboard-shell">
       <div className="dashboard-shell__glow" aria-hidden="true" />
-      <button className="btn btn--secondary dashboard-logout-fixed" onClick={handleLogout} type="button">
-        Odhlásit
-      </button>
 
       <section className="dashboard-wrap">
-        <DashboardHeader viewTitle={viewTitle} activeView={activeView} setActiveView={setActiveView} />
+        <DashboardHeader
+          viewTitle={viewTitle}
+          activeView={activeView}
+          setActiveView={setActiveView}
+          handleLogout={handleLogout}
+        />
 
         {activeView === "occupancy" ? (
           <OccupancySection
@@ -1513,6 +1582,7 @@ export default function Dashboard() {
             error={error}
             serviceStatus={serviceStatus}
             services={services}
+            roomServices={roomServices}
             formatMoney={formatMoney}
             openEditService={openEditService}
             deleteService={deleteService}
@@ -1751,7 +1821,7 @@ export default function Dashboard() {
                         selectedReservation.serviceItems.map((item, index) => (
                           <div className="reservation-detail-item" key={`reservation-service-${item.id ?? index}`}>
                             <span className="reservation-detail-item__label">
-                              {item.service?.name ?? `Služba #${item.service?.id ?? index + 1}`}
+                              {item.extraService?.name ?? `Služba #${item.extraService?.id ?? index + 1}`}
                             </span>
                             <span>
                               {item.quantity ?? 1}x {formatMoney(item.priceAtTime)} = {formatMoney(item.totalPrice)}
@@ -2076,7 +2146,7 @@ export default function Dashboard() {
                 <h4>Potvrzení rezervace</h4>
                 <div className="reservation-grid">
                   <div><strong>Pokoj:</strong> {createSlot.room.number}</div>
-                  <div><strong>Typ pokoje:</strong> {createSlot.room.type ?? "-"}</div>
+                  <div><strong>Typ pokoje:</strong> {roomTypeName(createSlot.room.type) || "-"}</div>
                   <div><strong>Od:</strong> {formatDate(createSlot.startDateIso)}</div>
                   <div><strong>Do:</strong> {formatDate(createForm.checkOutDate)}</div>
                   <div><strong>Nocí:</strong> {createPreview?.nights ?? 0}</div>
@@ -2141,7 +2211,10 @@ export default function Dashboard() {
         <div className="reservation-modal-backdrop" onClick={closeServiceEditor}>
           <section className="reservation-modal" onClick={(e) => e.stopPropagation()} aria-label="Správa služby">
             <header className="reservation-modal__head">
-              <h3>{serviceEditor.mode === "create" ? "Přidat službu" : "Upravit službu"}</h3>
+              <h3>
+                {serviceEditor.mode === "create" ? "Přidat službu" : "Upravit službu"}
+                {serviceEditor.kind === "room" ? " pokoje" : " hotelu"}
+              </h3>
               <button className="btn btn--secondary btn--compact" type="button" onClick={closeServiceEditor}>
                 Zavřít
               </button>
@@ -2152,16 +2225,18 @@ export default function Dashboard() {
                 <span>Název služby</span>
                 <input value={serviceForm.name} onChange={(e) => updateServiceForm("name", e.target.value)} />
               </label>
-              <label>
-                <span>Cena</span>
-                <input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={serviceForm.price}
-                  onChange={(e) => updateServiceForm("price", e.target.value)}
-                />
-              </label>
+              {serviceEditor.kind === "hotel" ? (
+                <label>
+                  <span>Cena</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={serviceForm.price}
+                    onChange={(e) => updateServiceForm("price", e.target.value)}
+                  />
+                </label>
+              ) : null}
               <label className="reservation-form-grid__full">
                 <span>Popis</span>
                 <textarea
@@ -2240,6 +2315,37 @@ export default function Dashboard() {
                   <span>Pokoj je aktivní</span>
                 </label>
               ) : null}
+
+              <fieldset className="reservation-customer-box reservation-form-grid__full">
+                <legend>Vybavení pokoje</legend>
+                {roomServices.length === 0 ? (
+                  <div className="customer-search-hint">Nejsou k dispozici žádné položky vybavení.</div>
+                ) : (
+                  <div className="new-customer-grid">
+                    {roomServices.map((service) => {
+                      const selected = Array.isArray(roomForm.serviceIds)
+                        ? roomForm.serviceIds.includes(String(service.id))
+                        : false;
+                      return (
+                        <label key={`room-service-${service.id}`}>
+                          <span>
+                            <input
+                              type="checkbox"
+                              checked={selected}
+                              onChange={(e) => toggleRoomService(service.id, e.target.checked)}
+                            />
+                            {" "}
+                            {service.name}
+                          </span>
+                          {service.description ? (
+                            <span className="customer-search-hint">{service.description}</span>
+                          ) : null}
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </fieldset>
             </div>
 
             {roomStatus.message ? (

@@ -26,7 +26,7 @@ public class JwtAuthFilter implements ContainerRequestFilter {
             path = "";
         }
         // Login musi zustat verejny i pri ruznem context rootu nebo reverzni proxy.
-        if (path.equals("auth/login") || path.endsWith("/auth/login") || path.contains("auth/login")) {
+        if (path.equals("login") || path.endsWith("/login") || path.contains("auth/login")) {
             return; // login endpoint is public
         }
 

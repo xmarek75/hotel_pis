@@ -174,6 +174,20 @@ public class Reservation {
         return extraServices;
     }
 
+    public void setExtraServices(Set<ReservationExtraService> extraServices) {
+        this.extraServices.clear();
+        if (extraServices == null) {
+            return;
+        }
+        for (ReservationExtraService item : extraServices) {
+            if (item == null) {
+                continue;
+            }
+            item.setReservation(this);
+            this.extraServices.add(item);
+        }
+    }
+
     public void addExtraService(ReservationExtraService extraService) {
         extraServices.add(extraService);
         extraService.setReservation(this);
@@ -224,5 +238,74 @@ public class Reservation {
 
     public void setEmployeeId(Long employeeId) {
         this.employeeId = employeeId;
+    }
+
+    // Frontend works with a flattened reservation shape, so expose derived fields directly.
+    public String getRoomNumber() {
+        return room != null ? room.getNumber() : null;
+    }
+
+    public String getRoomType() {
+        return room != null && room.getType() != null ? room.getType().getName() : null;
+    }
+
+    public Integer getRoomCapacity() {
+        return room != null ? room.getCapacity() : null;
+    }
+
+    public BigDecimal getRoomPricePerNight() {
+        return room != null ? room.getPricePerNight() : null;
+    }
+
+    public String getCustomerName() {
+        return customer != null ? customer.getName() : null;
+    }
+
+    public String getCustomerEmail() {
+        return customer != null ? customer.getEmail() : null;
+    }
+
+    public String getCustomerPhone() {
+        return customer != null ? customer.getPhone() : null;
+    }
+
+    public LocalDate getCustomerDateOfBirth() {
+        return customer != null ? customer.getDateOfBirth() : null;
+    }
+
+    public String getEmployeeName() {
+        return employee != null ? employee.getName() : null;
+    }
+
+    public String getEmployeeUsername() {
+        return employee != null ? employee.getUsername() : null;
+    }
+
+    public EmployeeRole getEmployeeRole() {
+        return employee != null ? employee.getRole() : null;
+    }
+
+    public BigDecimal getTotalPrice() {
+        BigDecimal total = BigDecimal.ZERO;
+        if (room != null && room.getPricePerNight() != null && checkInDate != null && checkOutDate != null) {
+            long nights = java.time.temporal.ChronoUnit.DAYS.between(checkInDate, checkOutDate);
+            if (nights > 0) {
+                total = total.add(room.getPricePerNight().multiply(BigDecimal.valueOf(nights)));
+            }
+        }
+        for (ReservationExtraService item : extraServices) {
+            if (item != null && item.getTotalPrice() != null) {
+                total = total.add(item.getTotalPrice());
+            }
+        }
+        return total;
+    }
+
+    public Set<ReservationExtraService> getServiceItems() {
+        return getExtraServices();
+    }
+
+    public void setServiceItems(Set<ReservationExtraService> serviceItems) {
+        setExtraServices(serviceItems);
     }
 }

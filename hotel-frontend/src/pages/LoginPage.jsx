@@ -4,7 +4,7 @@ import { useAuth } from "../auth/AuthContext";
 import { Waves } from "../components/ui/wave-background";
 
 async function testLogin({ username, password }) {
-  const res = await fetch("/api/auth/login", {
+  const res = await fetch("/api/login", {
     method: "POST",
     headers: {
       Accept: "application/json",
