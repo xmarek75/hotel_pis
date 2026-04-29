@@ -93,6 +93,14 @@ public class Room {
         return services;
     }
 
+    public void setServices(Set<RoomService> services) {
+        this.services.clear();
+        if (services == null) {
+            return;
+        }
+        this.services.addAll(services);
+    }
+
     public Set<Reservation> getReservations() {
         return reservations;
     }

@@ -9,6 +9,20 @@ export default function RoomsSection({
   formatMoney,
   openEditRoom,
 }) {
+  function roomTypeName(type) {
+    if (!type) return "-";
+    if (typeof type === "string") return type;
+    return type.name ?? "-";
+  }
+
+  function roomServiceNames(services) {
+    if (!Array.isArray(services) || services.length === 0) return "-";
+    return services
+      .map((service) => (typeof service === "string" ? service : service?.name))
+      .filter(Boolean)
+      .join(", ") || "-";
+  }
+
   return (
     <section className="panel panel--wide">
       <section className="rooms-admin rooms-admin--standalone">
@@ -33,6 +47,7 @@ export default function RoomsSection({
                 <tr>
                   <th>Číslo</th>
                   <th>Typ</th>
+                  <th>Služby</th>
                   <th>Kapacita</th>
                   <th>Cena / noc</th>
                   <th aria-label="Úprava pokoje" />
@@ -42,7 +57,8 @@ export default function RoomsSection({
                 {rooms.map((room) => (
                   <tr key={`manage-${room.id}`}>
                     <td>{room.number}</td>
-                    <td>{room.type}</td>
+                    <td>{roomTypeName(room.type)}</td>
+                    <td>{roomServiceNames(room.services)}</td>
                     <td>{room.capacity}</td>
                     <td>{formatMoney(room.pricePerNight)}</td>
                     <td>

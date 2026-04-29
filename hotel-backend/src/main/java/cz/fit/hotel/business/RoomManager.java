@@ -1,7 +1,10 @@
 package cz.fit.hotel.business;
 
 import cz.fit.hotel.model.Room;
+import cz.fit.hotel.model.RoomService;
 import cz.fit.hotel.repository.RoomRepository;
+import cz.fit.hotel.repository.RoomServiceRepository;
+import cz.fit.hotel.repository.RoomTypeRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -13,6 +16,12 @@ public class RoomManager {
 
     @Inject
     RoomRepository roomRepository;
+
+    @Inject
+    RoomTypeRepository roomTypeRepository;
+
+    @Inject
+    RoomServiceRepository roomServiceRepository;
 
     public List<Room> findAll() {
         return roomRepository.findAll();
@@ -34,6 +43,8 @@ public class RoomManager {
         if (roomRepository.findByNumber(room.getNumber()) != null) {
             throw new IllegalArgumentException("Room number already exists");
         }
+        room.setType(resolveRoomType(room));
+        replaceServicesWithManagedEntities(room, room.getServices());
 
         if (room.getPricePerNight() == null) {
             room.setPricePerNight(java.math.BigDecimal.ZERO);
@@ -60,11 +71,14 @@ public class RoomManager {
         }
 
         if (payload.getType() != null) {
-            room.setType(payload.getType());
+            room.setType(resolveRoomType(payload));
         }
 
         if (payload.getPricePerNight() != null) {
             room.setPricePerNight(payload.getPricePerNight());
+        }
+        if (payload.getServices() != null) {
+            replaceServicesWithManagedEntities(room, payload.getServices());
         }
 
         return roomRepository.update(room);
@@ -84,5 +98,64 @@ public class RoomManager {
             throw new IllegalArgumentException("Room not found");
         }
         return room;
+    }
+
+    private cz.fit.hotel.model.RoomType resolveRoomType(Room room) {
+        if (room.getType() == null) {
+            throw new IllegalArgumentException("Room type is required");
+        }
+        if (room.getType().getId() != null) {
+            cz.fit.hotel.model.RoomType type = roomTypeRepository.findById(room.getType().getId());
+            if (type != null) {
+                return type;
+            }
+        }
+        String name = room.getType().getName();
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("Room type is required");
+        }
+        cz.fit.hotel.model.RoomType type = roomTypeRepository.findByName(name.trim());
+        if (type == null) {
+            throw new IllegalArgumentException("Room type not found");
+        }
+        return type;
+    }
+
+    private void replaceServicesWithManagedEntities(Room room, java.util.Set<RoomService> requestedServices) {
+        java.util.Set<RoomService> requestedCopy = requestedServices == null
+                ? java.util.Set.of()
+                : new java.util.LinkedHashSet<>(requestedServices);
+        java.util.Set<RoomService> currentServices = new java.util.LinkedHashSet<>(room.getServices());
+        for (RoomService existingService : currentServices) {
+            room.removeService(existingService);
+        }
+        if (requestedCopy.isEmpty()) {
+            return;
+        }
+        for (RoomService requestedService : requestedCopy) {
+            RoomService service = resolveRoomService(requestedService);
+            room.addService(service);
+        }
+    }
+
+    private RoomService resolveRoomService(RoomService requestedService) {
+        if (requestedService == null) {
+            throw new IllegalArgumentException("Room service is required");
+        }
+        if (requestedService.getId() != null) {
+            RoomService service = roomServiceRepository.findById(requestedService.getId());
+            if (service != null) {
+                return service;
+            }
+        }
+        String name = requestedService.getName();
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("Room service is required");
+        }
+        RoomService service = roomServiceRepository.findByName(name.trim());
+        if (service == null) {
+            throw new IllegalArgumentException("Room service not found");
+        }
+        return service;
     }
 }

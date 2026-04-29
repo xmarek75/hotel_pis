@@ -41,6 +41,10 @@ public class ReservationExtraService {
         return id;
     }
 
+    public void setId(Long id) {
+        this.id = id;
+    }
+
     public int getQuantity() {
         return quantity;
     }

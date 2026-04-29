@@ -1,6 +1,7 @@
 package cz.fit.hotel.model;
 
 import jakarta.persistence.*;
+import jakarta.json.bind.annotation.JsonbTransient;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -18,6 +19,7 @@ public class RoomService {
     @Column
     private String description;
 
+    @JsonbTransient
     @ManyToMany(mappedBy = "services")
     private Set<Room> rooms = new HashSet<>();
 
@@ -31,6 +33,10 @@ public class RoomService {
 
     public Long getId() {
         return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
     }
 
     public Set<Room> getRooms() {
