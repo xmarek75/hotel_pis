@@ -7,6 +7,7 @@ import ReservationsSection from "./sections/ReservationsSection";
 import RoomsSection from "./sections/RoomsSection";
 import ServicesSection from "./sections/ServicesSection";
 import EmployeesSection from "./sections/EmployeesSection";
+import CustomersSection from "./sections/CustomersSection";
 
 // Globalni konstanty pouzite napric dashboardem.
 const DAYS_TO_SHOW = 7;
@@ -234,6 +235,7 @@ export default function Dashboard() {
   });
   const [reservationPage, setReservationPage] = useState(1);
   const [customers, setCustomers] = useState([]);
+  const [customerAdminSearch, setCustomerAdminSearch] = useState("");
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -291,6 +293,14 @@ export default function Dashboard() {
   });
   const [employeePasswordStatus, setEmployeePasswordStatus] = useState({ type: "idle", message: "" });
   const [employeeStatus, setEmployeeStatus] = useState({ type: "idle", message: "" });
+  const [customerEditor, setCustomerEditor] = useState(null);
+  const [customerForm, setCustomerForm] = useState({
+    name: "",
+    dateOfBirth: "",
+    email: "",
+    phone: "",
+  });
+  const [customerStatus, setCustomerStatus] = useState({ type: "idle", message: "" });
   const [createForm, setCreateForm] = useState({
     checkOutDate: "",
     numberOfGuests: 1,
@@ -454,10 +464,11 @@ export default function Dashboard() {
     return `Zobrazený týden: ${weekRangeLabel}`;
   }, [occupancyRange, weekRangeLabel]);
   const viewTitle = useMemo(() => {
-    if (activeView === "occupancy") return "Dashboard-obsazenost";
+    if (activeView === "occupancy") return "Dashboard";
     if (activeView === "reservations") return "Správa rezervací";
     if (activeView === "rooms") return "Správa pokojů";
     if (activeView === "services") return "Správa služeb";
+    if (activeView === "customers") return "Správa zákazníků";
     return "Správa zaměstnanců";
   }, [activeView]);
 
@@ -641,6 +652,17 @@ export default function Dashboard() {
       return [name, email, phone].some((value) => value.includes(query));
     });
   }, [customers, customerSearch]);
+
+  const filteredCustomersAdmin = useMemo(() => {
+    const query = customerAdminSearch.trim().toLowerCase();
+    if (!query) return customers;
+    return customers.filter((customer) => {
+      const name = String(customer.name ?? "").toLowerCase();
+      const email = String(customer.email ?? "").toLowerCase();
+      const phone = String(customer.phone ?? "").toLowerCase();
+      return [name, email, phone].some((value) => value.includes(query));
+    });
+  }, [customers, customerAdminSearch]);
 
   function openCreateReservation(room, day) {
     const startDateIso = formatIsoDay(day);
@@ -1273,6 +1295,83 @@ export default function Dashboard() {
     setEmployeeForm((prev) => ({ ...prev, [field]: value }));
   }
 
+  function openEditCustomer(customer) {
+    setCustomerEditor({ customerId: customer.id });
+    setCustomerStatus({ type: "idle", message: "" });
+    setCustomerForm({
+      name: customer.name ?? "",
+      dateOfBirth: customer.dateOfBirth ?? "",
+      email: customer.email ?? "",
+      phone: customer.phone ?? "",
+    });
+  }
+
+  function closeCustomerEditor() {
+    setCustomerEditor(null);
+    setCustomerStatus({ type: "idle", message: "" });
+  }
+
+  function updateCustomerForm(field, value) {
+    setCustomerForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  function validateCustomerForm() {
+    if (!customerForm.name?.trim()) return "Jméno zákazníka je povinné.";
+    if (!customerForm.dateOfBirth) return "Datum narození je povinné.";
+    if (!customerForm.phone?.trim()) return "Telefon je povinný.";
+    const age = calculateAgeFromDate(customerForm.dateOfBirth);
+    if (age == null || age < 0) return "Datum narození musí být platné a nesmí být v budoucnosti.";
+    return "";
+  }
+
+  async function refreshCustomers() {
+    const customersRes = await fetch("/api/customers", {
+      headers: { Authorization: authHeader, Accept: "application/json" },
+    });
+    if (!customersRes.ok) {
+      throw new Error(`Načtení zákazníků selhalo (${customersRes.status})`);
+    }
+    const customersData = await customersRes.json();
+    setCustomers(Array.isArray(customersData) ? customersData : []);
+  }
+
+  async function submitCustomerEditor() {
+    if (!customerEditor?.customerId) return;
+    const validation = validateCustomerForm();
+    if (validation) {
+      setCustomerStatus({ type: "error", message: validation });
+      return;
+    }
+
+    setCustomerStatus({ type: "loading", message: "Ukládám zákazníka..." });
+    try {
+      const res = await fetch(`/api/customers/${customerEditor.customerId}`, {
+        method: "PUT",
+        headers: {
+          Authorization: authHeader,
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: customerForm.name.trim(),
+          dateOfBirth: customerForm.dateOfBirth,
+          email: customerForm.email.trim(),
+          phone: customerForm.phone.trim(),
+        }),
+      });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(`Uložení zákazníka selhalo (${res.status})${txt ? `: ${txt}` : ""}`);
+      }
+
+      await refreshCustomers();
+      setCustomerStatus({ type: "success", message: "Zákazník byl uložen." });
+      closeCustomerEditor();
+    } catch (err) {
+      setCustomerStatus({ type: "error", message: err.message || "Nepodařilo se uložit zákazníka." });
+    }
+  }
+
   function validateEmployeeForm() {
     if (!employeeForm.name?.trim()) return "Jméno zaměstnance je povinné.";
     if (!employeeForm.username?.trim()) return "Username je povinný.";
@@ -1500,105 +1599,121 @@ export default function Dashboard() {
   return (
     <main className="dashboard-shell">
       <div className="dashboard-shell__glow" aria-hidden="true" />
+      <button className="btn btn--secondary dashboard-logout-fixed" onClick={handleLogout} type="button">
+        Odhlásit se
+      </button>
 
-      <section className="dashboard-wrap">
-        <DashboardHeader
-          viewTitle={viewTitle}
-          activeView={activeView}
-          setActiveView={setActiveView}
-          handleLogout={handleLogout}
-        />
+      <section className="dashboard-layout">
+        <DashboardHeader viewTitle={viewTitle} activeView={activeView} setActiveView={setActiveView} />
 
-        {activeView === "occupancy" ? (
-          <OccupancySection
-            RANGE_OPTIONS={RANGE_OPTIONS}
-            occupancyRange={occupancyRange}
-            setOccupancyRange={setOccupancyRange}
-            username={username}
-            occupancySettingsOpen={occupancySettingsOpen}
-            setOccupancySettingsOpen={setOccupancySettingsOpen}
-            occupancyCapacityMode={occupancyCapacityMode}
-            setOccupancyCapacityMode={setOccupancyCapacityMode}
-            occupancyCapacityValue={occupancyCapacityValue}
-            setOccupancyCapacityValue={setOccupancyCapacityValue}
-            filteredOccupancyRooms={filteredOccupancyRooms}
-            rooms={rooms}
-            goPrevWeek={goPrevWeek}
-            goPrevDay={goPrevDay}
-            formatIsoDay={formatIsoDay}
-            weekStart={weekStart}
-            onWeekDateChange={onWeekDateChange}
-            goNextDay={goNextDay}
-            goNextWeek={goNextWeek}
-            rangeHeadline={rangeHeadline}
-            loading={loading}
-            error={error}
-            weekDays={weekDays}
-            formatMonthLabel={formatMonthLabel}
-            formatDayLabel={formatDayLabel}
-            reservations={reservations}
-            getCellOccupancy={getCellOccupancy}
-            openCreateReservation={openCreateReservation}
-            openReservationDetail={openReservationDetail}
-          />
-        ) : activeView === "reservations" ? (
-          <ReservationsSection
-            loading={loading}
-            error={error}
-            reservationFilters={reservationFilters}
-            updateReservationFilter={updateReservationFilter}
-            RESERVATION_STATUSES={RESERVATION_STATUSES}
-            PAYMENT_STATUSES={PAYMENT_STATUSES}
-            reservationSort={reservationSort}
-            setReservationSort={setReservationSort}
-            RESERVATION_SORT_FIELDS={RESERVATION_SORT_FIELDS}
-            filteredReservations={filteredReservations}
-            pagedReservations={pagedReservations}
-            reservationPage={reservationPage}
-            setReservationPage={setReservationPage}
-            reservationTotalPages={reservationTotalPages}
-            pageSize={RESERVATIONS_PAGE_SIZE}
-            reservations={reservations}
-            resetReservationFilters={resetReservationFilters}
-            openReservationDetail={openReservationDetail}
-            formatDate={formatDate}
-            formatMoney={formatMoney}
-          />
-        ) : activeView === "rooms" ? (
-          <RoomsSection
-            canManageRooms={canManageRooms}
-            openCreateRoom={openCreateRoom}
-            loading={loading}
-            error={error}
-            rooms={rooms}
-            formatMoney={formatMoney}
-            openEditRoom={openEditRoom}
-          />
-        ) : activeView === "services" ? (
-          <ServicesSection
-            canManageServices={canManageServices}
-            openCreateService={openCreateService}
-            loading={loading}
-            error={error}
-            serviceStatus={serviceStatus}
-            services={services}
-            roomServices={roomServices}
-            formatMoney={formatMoney}
-            openEditService={openEditService}
-            deleteService={deleteService}
-          />
-        ) : (
-          <EmployeesSection
-            canManageEmployees={canManageEmployees}
-            openCreateEmployee={openCreateEmployee}
-            loading={loading}
-            error={error}
-            employeeStatus={employeeStatus}
-            employees={employees}
-            openEditEmployee={openEditEmployee}
-            deleteEmployee={deleteEmployee}
-          />
-        )}
+        <div className="dashboard-wrap">
+          <section className="dashboard-pagehead">
+            <p className="dashboard-pagehead__eyebrow">Hotel management</p>
+            <h1 className="dashboard-pagehead__title">{viewTitle}</h1>
+          </section>
+
+          {activeView === "occupancy" ? (
+            <OccupancySection
+              RANGE_OPTIONS={RANGE_OPTIONS}
+              occupancyRange={occupancyRange}
+              setOccupancyRange={setOccupancyRange}
+              username={username}
+              occupancySettingsOpen={occupancySettingsOpen}
+              setOccupancySettingsOpen={setOccupancySettingsOpen}
+              occupancyCapacityMode={occupancyCapacityMode}
+              setOccupancyCapacityMode={setOccupancyCapacityMode}
+              occupancyCapacityValue={occupancyCapacityValue}
+              setOccupancyCapacityValue={setOccupancyCapacityValue}
+              filteredOccupancyRooms={filteredOccupancyRooms}
+              rooms={rooms}
+              goPrevWeek={goPrevWeek}
+              goPrevDay={goPrevDay}
+              formatIsoDay={formatIsoDay}
+              weekStart={weekStart}
+              onWeekDateChange={onWeekDateChange}
+              goNextDay={goNextDay}
+              goNextWeek={goNextWeek}
+              rangeHeadline={rangeHeadline}
+              loading={loading}
+              error={error}
+              weekDays={weekDays}
+              formatMonthLabel={formatMonthLabel}
+              formatDayLabel={formatDayLabel}
+              reservations={reservations}
+              getCellOccupancy={getCellOccupancy}
+              openCreateReservation={openCreateReservation}
+              openReservationDetail={openReservationDetail}
+            />
+          ) : activeView === "reservations" ? (
+            <ReservationsSection
+              loading={loading}
+              error={error}
+              reservationFilters={reservationFilters}
+              updateReservationFilter={updateReservationFilter}
+              RESERVATION_STATUSES={RESERVATION_STATUSES}
+              PAYMENT_STATUSES={PAYMENT_STATUSES}
+              reservationSort={reservationSort}
+              setReservationSort={setReservationSort}
+              RESERVATION_SORT_FIELDS={RESERVATION_SORT_FIELDS}
+              filteredReservations={filteredReservations}
+              pagedReservations={pagedReservations}
+              reservationPage={reservationPage}
+              setReservationPage={setReservationPage}
+              reservationTotalPages={reservationTotalPages}
+              pageSize={RESERVATIONS_PAGE_SIZE}
+              reservations={reservations}
+              resetReservationFilters={resetReservationFilters}
+              openReservationDetail={openReservationDetail}
+              formatDate={formatDate}
+              formatMoney={formatMoney}
+            />
+          ) : activeView === "rooms" ? (
+            <RoomsSection
+              canManageRooms={canManageRooms}
+              openCreateRoom={openCreateRoom}
+              loading={loading}
+              error={error}
+              rooms={rooms}
+              formatMoney={formatMoney}
+              openEditRoom={openEditRoom}
+            />
+          ) : activeView === "services" ? (
+            <ServicesSection
+              canManageServices={canManageServices}
+              openCreateService={openCreateService}
+              loading={loading}
+              error={error}
+              serviceStatus={serviceStatus}
+              services={services}
+              roomServices={roomServices}
+              formatMoney={formatMoney}
+              openEditService={openEditService}
+              deleteService={deleteService}
+            />
+          ) : activeView === "customers" ? (
+            <CustomersSection
+              loading={loading}
+              error={error}
+              customers={filteredCustomersAdmin}
+              formatDate={formatDate}
+              customerAdminSearch={customerAdminSearch}
+              setCustomerAdminSearch={setCustomerAdminSearch}
+              openEditCustomer={openEditCustomer}
+              customerStatus={customerStatus}
+            />
+          ) : (
+            <EmployeesSection
+              canManageEmployees={canManageEmployees}
+              openCreateEmployee={openCreateEmployee}
+              loading={loading}
+              error={error}
+              employeeStatus={employeeStatus}
+              employees={employees}
+              openEditEmployee={openEditEmployee}
+              deleteEmployee={deleteEmployee}
+            />
+          )}
+        </div>
       </section>
 
       {/* Modal: detail a editace existujici rezervace */}
@@ -2489,6 +2604,57 @@ export default function Dashboard() {
             <div className="reservation-actions">
               <button className="btn btn--primary" type="button" onClick={submitEmployeePasswordChange}>
                 Uložit nové heslo
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {customerEditor ? (
+        <div className="reservation-modal-backdrop" onClick={closeCustomerEditor}>
+          <section className="reservation-modal" onClick={(e) => e.stopPropagation()} aria-label="Úprava zákazníka">
+            <header className="reservation-modal__head">
+              <h3>Upravit zákazníka</h3>
+              <button className="btn btn--secondary btn--compact" type="button" onClick={closeCustomerEditor}>
+                Zavřít
+              </button>
+            </header>
+
+            <div className="reservation-form-grid">
+              <label>
+                <span>Jméno</span>
+                <input value={customerForm.name} onChange={(e) => updateCustomerForm("name", e.target.value)} />
+              </label>
+              <label>
+                <span>Datum narození</span>
+                <input
+                  type="date"
+                  value={customerForm.dateOfBirth}
+                  onChange={(e) => updateCustomerForm("dateOfBirth", e.target.value)}
+                />
+              </label>
+              <label>
+                <span>E-mail</span>
+                <input value={customerForm.email} onChange={(e) => updateCustomerForm("email", e.target.value)} />
+              </label>
+              <label>
+                <span>Telefon</span>
+                <input value={customerForm.phone} onChange={(e) => updateCustomerForm("phone", e.target.value)} />
+              </label>
+            </div>
+
+            {customerStatus.message ? (
+              <p className={`status status--${customerStatus.type === "idle" ? "neutral" : customerStatus.type}`}>
+                {customerStatus.message}
+              </p>
+            ) : null}
+
+            <div className="reservation-actions">
+              <button className="btn btn--secondary" type="button" onClick={closeCustomerEditor}>
+                Zrušit
+              </button>
+              <button className="btn btn--primary" type="button" onClick={submitCustomerEditor}>
+                Uložit zákazníka
               </button>
             </div>
           </section>

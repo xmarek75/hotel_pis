@@ -16,7 +16,7 @@ export default function ServicesSection({
     <section className="panel panel--wide">
       <section className="rooms-admin rooms-admin--standalone">
         <div className="rooms-admin__head">
-          <h3>Správa služeb</h3>
+          
           {!canManageServices ? (
             <span className="rooms-admin__note">Správu služeb má dostupnou admin nebo manager účet.</span>
           ) : null}
