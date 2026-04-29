@@ -41,6 +41,24 @@ docker compose ps
 
 ## 3. Spuštění backendu
 
+### Varianta A: backend v Dockeru
+
+V rootu projektu:
+
+```bash
+docker compose up -d --build backend
+```
+
+Backend poběží na:
+- `http://localhost:9080/hotel`
+
+API (příklad):
+- `http://localhost:9080/hotel/api/rooms`
+
+Tato varianta je doporučená, pokud `mvn liberty:dev` zlobí při instalaci Liberty features.
+
+### Varianta B: backend lokálně přes Maven
+
 ```bash
 cd hotel-backend
 mvn liberty:dev
@@ -106,7 +124,6 @@ docker compose down -v
 
 ---
 
-Rychlý start (3 terminály):
-1. `docker compose up -d`
-2. `cd hotel-backend && mvn liberty:dev`
-3. `cd hotel-frontend && npm install && npm run dev`
+Rychlý start:
+1. `docker compose up -d --build backend`
+2. `cd hotel-frontend && npm install && npm run dev`

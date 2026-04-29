@@ -11,6 +11,21 @@ services:
     volumes:
       - hotel_db_data:/var/lib/postgresql/data
 
+  backend:
+    build:
+      context: ./hotel-backend
+    container_name: hotel-backend
+    depends_on:
+      - db
+    environment:
+      hotel.db.host: db
+      hotel.db.port: "5432"
+      hotel.db.name: hotel
+      hotel.db.user: hotel
+      hotel.db.password: hotel
+    ports:
+      - "9080:9080"
+
   pgadmin:
     image: dpage/pgadmin4:8
     container_name: hotel-pgadmin
@@ -21,6 +36,7 @@ services:
       - "5050:80"
     depends_on:
       - db
+      - backend
 
 volumes:
   hotel_db_data:
