@@ -14,12 +14,16 @@ import java.util.regex.Pattern;
 @ApplicationScoped
 public class CustomerManager {
 
+    // Regular expressions for email and phone validation
+    // Used in validate() method
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9+_.-]+@(.+)$");
     private static final Pattern PHONE_PATTERN = Pattern.compile("^\\+?[0-9]{9,15}$");
 
+    // Repository for Customer entity
     @Inject
     CustomerRepository customerRepository;
 
+    // Repository for Reservation entity
     @Inject
     ReservationRepository reservationRepository;
 
@@ -55,7 +59,7 @@ public class CustomerManager {
         if (payload.getDateOfBirth() != null) {
             customer.setDateOfBirth(payload.getDateOfBirth());
         }
-        
+
         // Handle optional email update
         if (payload.getEmail() != null && !payload.getEmail().isBlank()) {
             customer.setEmail(payload.getEmail());
@@ -79,13 +83,14 @@ public class CustomerManager {
     @Transactional
     public void delete(Long id) {
         Customer customer = requireCustomer(id);
-        
-        // Business logic: do not allow deletion if the customer has an active reservation
+
+        // Business logic: do not allow deletion if the customer has an active
+        // reservation
         boolean hasActive = reservationRepository.hasActiveReservation(id);
         if (hasActive) {
             throw new IllegalArgumentException("Cannot delete customer with an active reservation");
         }
-        
+
         customerRepository.delete(customer);
     }
 
@@ -99,13 +104,14 @@ public class CustomerManager {
         if (customer.getDateOfBirth().isAfter(LocalDate.now())) {
             throw new IllegalArgumentException("Customer dateOfBirth must not be in the future");
         }
-        
+
         // phone requires validation: must exist and be in correct format
         if (customer.getPhone() == null || customer.getPhone().isBlank()) {
             throw new IllegalArgumentException("Customer phone is required");
         }
         if (!PHONE_PATTERN.matcher(customer.getPhone()).matches()) {
-            throw new IllegalArgumentException("Invalid phone number format. It should contain 9 to 15 digits and can start with +");
+            throw new IllegalArgumentException(
+                    "Invalid phone number format. It should contain 9 to 15 digits and can start with +");
         }
 
         // Email is optional (nullable), but if provided, it must be in a valid format.
