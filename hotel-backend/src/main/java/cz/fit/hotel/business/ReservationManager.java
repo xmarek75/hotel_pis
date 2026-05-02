@@ -43,6 +43,9 @@ public class ReservationManager {
     @Transactional
     public Reservation create(Reservation reservation) {
         validateDates(reservation);
+        if (reservation.getCheckInDate().isBefore(java.time.LocalDate.now())) {
+            throw new IllegalArgumentException("Cannot create a reservation in the past");
+        }
         Long roomId = extractRoomId(reservation);
         Long customerId = extractCustomerId(reservation);
         Long employeeId = extractEmployeeId(reservation);
