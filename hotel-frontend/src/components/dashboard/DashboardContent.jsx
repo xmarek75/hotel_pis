@@ -1,208 +1,57 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
 import DashboardHeader from "./DashboardHeader";
+import {
+  DAYS_TO_SHOW,
+  EMPLOYEE_ROLES,
+  PAYMENT_STATUSES,
+  RANGE_OPTIONS,
+  RESERVATIONS_PAGE_SIZE,
+  RESERVATION_SORT_FIELDS,
+  RESERVATION_STATUSES,
+} from "./dashboardConstants";
+import {
+  addDays,
+  buildReservationServicePayload,
+  calculateAgeFromDate,
+  calculateSelectedServicesTotal,
+  enrichReservation,
+  formatDate,
+  formatDayLabel,
+  formatIsoDay,
+  formatMoney,
+  formatMonthLabel,
+  formatRangeLabel,
+  getCellOccupancy,
+  getRoomServiceIds,
+  getRoomTypeId,
+  getRoomTypeName,
+  formatRoomServices,
+  mapReservationServiceItems,
+  normalizeServiceSelections,
+  parseLocalDate,
+  startOfDay,
+} from "./dashboardUtils";
+import EmployeeEditorModal from "./modals/EmployeeEditorModal";
+import EmployeePasswordEditorModal from "./modals/EmployeePasswordEditorModal";
+import CustomerEditorModal from "./modals/CustomerEditorModal";
+import ReservationCreateModal from "./modals/ReservationCreateModal";
+import ReservationDetailModal from "./modals/ReservationDetailModal";
+import RoomAmenityEditorModal from "./modals/RoomAmenityEditorModal";
+import RoomEditorModal from "./modals/RoomEditorModal";
+import ServiceEditorModal from "./modals/ServiceEditorModal";
+import CustomersSection from "./sections/CustomersSection";
 import OccupancySection from "./sections/OccupancySection";
 import ReservationsSection from "./sections/ReservationsSection";
 import RoomsSection from "./sections/RoomsSection";
 import ServicesSection from "./sections/ServicesSection";
 import EmployeesSection from "./sections/EmployeesSection";
 
-// Globalni konstanty pouzite napric dashboardem.
-const DAYS_TO_SHOW = 7;
-const RESERVATIONS_PAGE_SIZE = 40;
-const RANGE_OPTIONS = {
-  week: { label: "Týdenní", days: 7 },
-  tenDays: { label: "10denní", days: 10 },
-  month: { label: "Měsíční", days: 30 },
-};
-const RESERVATION_STATUSES = ["PENDING", "CONFIRMED", "CHECKED_IN", "CHECKED_OUT", "CANCELED"];
-const PAYMENT_STATUSES = ["UNPAID", "PARTIALLY_PAID", "PAID", "REFUNDED"];
-const RESERVATION_SORT_FIELDS = [
-  { value: "id", label: "ID" },
-  { value: "roomNumber", label: "Pokoj" },
-  { value: "customerName", label: "Zakaznik" },
-  { value: "checkInDate", label: "Od" },
-  { value: "checkOutDate", label: "Do" },
-  { value: "status", label: "Stav rezervace" },
-  { value: "paymentStatus", label: "Stav platby" },
-  { value: "totalPrice", label: "Cena" },
-];
-const EMPLOYEE_ROLES = ["ADMINISTRATOR", "RECEPTIONIST", "MANAGER"];
+const API_BASE = import.meta.env.DEV ? "/api" : "/hotel/api";
 
-// Date/format helpery pro kalendar obsazenosti a tabulky.
-function addDays(date, amount) {
-  const d = new Date(date);
-  d.setDate(d.getDate() + amount);
-  return d;
-}
-
-function startOfDay(date) {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-function formatDayLabel(date, range = "week") {
-  if (range === "month") {
-    return date.toLocaleDateString("cs-CZ", { day: "2-digit" });
-  }
-  if (range === "tenDays") {
-    return date.toLocaleDateString("cs-CZ", { day: "2-digit", month: "2-digit" });
-  }
-  return date.toLocaleDateString("cs-CZ", { weekday: "short", day: "2-digit", month: "2-digit" });
-}
-
-function formatMonthLabel(date) {
-  return `${date.getMonth() + 1}.`;
-}
-
-function formatIsoDay(date) {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
-function startOfWeek(date) {
-  const d = startOfDay(date);
-  const day = d.getDay(); // 0=Sun, 1=Mon, ...
-  const diffToMonday = (day + 6) % 7;
-  d.setDate(d.getDate() - diffToMonday);
-  return d;
-}
-
-function formatRangeLabel(fromDate, toDate) {
-  const from = fromDate.toLocaleDateString("cs-CZ", { day: "2-digit", month: "2-digit" });
-  const to = toDate.toLocaleDateString("cs-CZ", { day: "2-digit", month: "2-digit" });
-  return `${from} - ${to}`;
-}
-
-function formatDateTime(value) {
-  if (!value) return "-";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleString("cs-CZ");
-}
-
-function formatDate(value) {
-  if (!value) return "-";
-  const d = parseLocalDate(value);
-  if (!d || Number.isNaN(d.getTime())) return value;
-  return d.toLocaleDateString("cs-CZ");
-}
-
-function calculateAgeFromDate(value) {
-  if (!value) return null;
-  const dob = parseLocalDate(value);
-  if (!dob || Number.isNaN(dob.getTime())) return null;
-  const today = new Date();
-  let age = today.getFullYear() - dob.getFullYear();
-  const monthDiff = today.getMonth() - dob.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
-    age -= 1;
-  }
-  return age >= 0 ? age : null;
-}
-
-function formatMoney(value) {
-  if (value == null || value === "") return "-";
-  const num = Number(value);
-  if (Number.isNaN(num)) return String(value);
-  return new Intl.NumberFormat("cs-CZ", { style: "currency", currency: "EUR" }).format(num);
-}
-
-function normalizeServiceSelections(items) {
-  if (!Array.isArray(items)) return [];
-  return items
-    .map((item) => {
-      const serviceId = item?.serviceId != null ? String(item.serviceId) : "";
-      const quantity = Math.max(1, Number(item?.quantity ?? 1));
-      return serviceId ? { serviceId, quantity } : null;
-    })
-    .filter(Boolean);
-}
-
-function mapReservationServiceItems(items) {
-  if (!Array.isArray(items)) return [];
-  return items
-    .map((item) => {
-      const serviceId = item?.service?.id != null ? String(item.service.id) : "";
-      const quantity = Math.max(1, Number(item?.quantity ?? 1));
-      return serviceId ? { serviceId, quantity } : null;
-    })
-    .filter(Boolean);
-}
-
-function buildReservationServicePayload(items) {
-  return normalizeServiceSelections(items).map((item) => ({
-    service: { id: Number(item.serviceId) },
-    quantity: Number(item.quantity),
-  }));
-}
-
-function calculateSelectedServicesTotal(items, services) {
-  const safeItems = normalizeServiceSelections(items);
-  if (safeItems.length === 0) return 0;
-
-  return safeItems.reduce((sum, item) => {
-    const service = services.find((entry) => String(entry.id) === String(item.serviceId));
-    const price = Number(service?.price ?? 0);
-    return sum + (Number.isFinite(price) ? price : 0) * Math.max(1, Number(item.quantity));
-  }, 0);
-}
-
-function parseLocalDate(dateStr) {
-  return dateStr ? new Date(`${dateStr}T00:00:00`) : null;
-}
-
-function isReservationActive(status) {
-  return status !== "CANCELED";
-}
-
-function getCellOccupancy(room, day, reservations) {
-  const roomId = room.id ?? null;
-  const dayStart = startOfDay(day);
-  let arrivalReservation = null;
-  let departureReservation = null;
-
-  for (const reservation of reservations) {
-    if (!isReservationActive(reservation.status)) {
-      continue;
-    }
-
-    const reservationRoomId = reservation.roomId ?? reservation.room?.id ?? null;
-    if (roomId == null || reservationRoomId == null || Number(reservationRoomId) !== Number(roomId)) {
-      continue;
-    }
-
-    const checkIn = parseLocalDate(reservation.checkInDate);
-    const checkOut = parseLocalDate(reservation.checkOutDate);
-    if (!checkIn || !checkOut) {
-      continue;
-    }
-
-    if (dayStart > checkIn && dayStart < checkOut) {
-      return { state: "reserved", reservation };
-    }
-    if (dayStart.getTime() === checkIn.getTime()) {
-      arrivalReservation = reservation;
-    }
-    if (dayStart.getTime() === checkOut.getTime()) {
-      departureReservation = reservation;
-    }
-  }
-
-  if (arrivalReservation && departureReservation) {
-    return { state: "turnover", reservation: arrivalReservation };
-  }
-  if (arrivalReservation) {
-    return { state: "arrival", reservation: arrivalReservation };
-  }
-  if (departureReservation) {
-    return { state: "departure", reservation: departureReservation };
-  }
-  return { state: "free", reservation: null };
+function apiUrl(path) {
+  return `${API_BASE}${path}`;
 }
 
 export default function Dashboard() {
@@ -211,6 +60,8 @@ export default function Dashboard() {
 
   // Centralni state dashboardu (data, filtry, modaly, formulare a status hlasky).
   const [rooms, setRooms] = useState([]);
+  const [roomTypes, setRoomTypes] = useState([]);
+  const [roomAmenities, setRoomAmenities] = useState([]);
   const [reservations, setReservations] = useState([]);
   const [services, setServices] = useState([]);
   const [reservationFilters, setReservationFilters] = useState({
@@ -227,6 +78,14 @@ export default function Dashboard() {
   });
   const [reservationPage, setReservationPage] = useState(1);
   const [customers, setCustomers] = useState([]);
+  const [customerEditor, setCustomerEditor] = useState(null);
+  const [customerForm, setCustomerForm] = useState({
+    name: "",
+    dateOfBirth: "",
+    email: "",
+    phone: "",
+  });
+  const [customerStatus, setCustomerStatus] = useState({ type: "idle", message: "" });
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -235,6 +94,7 @@ export default function Dashboard() {
   const [occupancySettingsOpen, setOccupancySettingsOpen] = useState(false);
   const [occupancyCapacityMode, setOccupancyCapacityMode] = useState("all");
   const [occupancyCapacityValue, setOccupancyCapacityValue] = useState("4");
+  const [occupancyAmenityIds, setOccupancyAmenityIds] = useState([]);
   const [weekStart, setWeekStart] = useState(() => startOfDay(new Date()));
   const [selectedReservation, setSelectedReservation] = useState(null);
   const [reservationEditMode, setReservationEditMode] = useState(false);
@@ -254,9 +114,11 @@ export default function Dashboard() {
   const [roomEditor, setRoomEditor] = useState(null);
   const [roomForm, setRoomForm] = useState({
     number: "",
-    type: "STANDARD",
+    typeId: "",
+    typeName: "",
     capacity: 2,
     pricePerNight: "",
+    roomServiceIds: [],
     active: true,
   });
   const [roomStatus, setRoomStatus] = useState({ type: "idle", message: "" });
@@ -267,6 +129,12 @@ export default function Dashboard() {
     description: "",
   });
   const [serviceStatus, setServiceStatus] = useState({ type: "idle", message: "" });
+  const [roomAmenityEditor, setRoomAmenityEditor] = useState(null);
+  const [roomAmenityForm, setRoomAmenityForm] = useState({
+    name: "",
+    description: "",
+  });
+  const [roomAmenityStatus, setRoomAmenityStatus] = useState({ type: "idle", message: "" });
   const [employeeEditor, setEmployeeEditor] = useState(null);
   const [employeeForm, setEmployeeForm] = useState({
     name: "",
@@ -298,8 +166,10 @@ export default function Dashboard() {
   const [customerSearch, setCustomerSearch] = useState("");
   const isAdmin = role === "administrator";
   const isManager = role === "MANAGER";
+  const isReceptionist = role === "RECEPTIONIST";
   const canManageRooms = isAdmin;
   const canManageServices = isAdmin || isManager;
+  const canManageCustomers = isAdmin || isReceptionist;
   const canManageEmployees = isAdmin;
 
   function handleLogout() {
@@ -340,11 +210,13 @@ export default function Dashboard() {
           Authorization: authHeader,
           Accept: "application/json",
         };
-        const [roomsRes, reservationsRes, customersRes, servicesRes] = await Promise.all([
-          fetch("/api/rooms", { headers }),
-          fetch("/api/reservations", { headers }),
-          fetch("/api/customers", { headers }),
-          fetch("/api/services", { headers }),
+        const [roomsRes, reservationsRes, customersRes, servicesRes, roomTypesRes, roomAmenitiesRes] = await Promise.all([
+          fetch(apiUrl("/rooms"), { headers }),
+          fetch(apiUrl("/reservations"), { headers }),
+          fetch(apiUrl("/customers"), { headers }),
+          fetch(apiUrl("/services"), { headers }),
+          fetch(apiUrl("/room-types"), { headers }),
+          fetch(apiUrl("/room-amenities"), { headers }),
         ]);
 
         if (!roomsRes.ok) {
@@ -353,17 +225,25 @@ export default function Dashboard() {
         if (!reservationsRes.ok) {
           throw new Error(`Načtení rezervací selhalo (${reservationsRes.status})`);
         }
-        if (!customersRes.ok) {
+        if (!customersRes.ok && customersRes.status !== 401 && customersRes.status !== 403) {
           throw new Error(`Načtení zákazníků selhalo (${customersRes.status})`);
         }
         if (!servicesRes.ok) {
           throw new Error(`Načtení služeb selhalo (${servicesRes.status})`);
         }
+        if (!roomTypesRes.ok) {
+          throw new Error(`Načtení typů pokojů selhalo (${roomTypesRes.status})`);
+        }
+        if (!roomAmenitiesRes.ok) {
+          throw new Error(`Načtení vybavení pokojů selhalo (${roomAmenitiesRes.status})`);
+        }
 
         const roomsData = await roomsRes.json();
         const reservationsData = await reservationsRes.json();
-        const customersData = await customersRes.json();
+        const customersData = customersRes.ok ? await customersRes.json() : [];
         const servicesData = await servicesRes.json();
+        const roomTypesData = await roomTypesRes.json();
+        const roomAmenitiesData = await roomAmenitiesRes.json();
 
         const activeRooms = Array.isArray(roomsData)
           ? roomsData.filter((room) => room.active !== false)
@@ -371,9 +251,11 @@ export default function Dashboard() {
         const safeReservations = Array.isArray(reservationsData) ? reservationsData : [];
         const safeCustomers = Array.isArray(customersData) ? customersData : [];
         const safeServices = Array.isArray(servicesData) ? servicesData : [];
+        const safeRoomTypes = Array.isArray(roomTypesData) ? roomTypesData : [];
+        const safeRoomAmenities = Array.isArray(roomAmenitiesData) ? roomAmenitiesData : [];
         let safeEmployees = [];
         if (role === "administrator") {
-          const employeesRes = await fetch("/api/employees", { headers });
+          const employeesRes = await fetch(apiUrl("/employees"), { headers });
           if (employeesRes.ok) {
             const employeesData = await employeesRes.json();
             safeEmployees = Array.isArray(employeesData) ? employeesData : [];
@@ -387,6 +269,8 @@ export default function Dashboard() {
           setReservations(safeReservations);
           setCustomers(safeCustomers);
           setServices(safeServices);
+          setRoomTypes(safeRoomTypes);
+          setRoomAmenities(safeRoomAmenities);
           setEmployees(safeEmployees);
         }
       } catch (err) {
@@ -396,6 +280,8 @@ export default function Dashboard() {
           setReservations([]);
           setCustomers([]);
           setServices([]);
+          setRoomTypes([]);
+          setRoomAmenities([]);
           setEmployees([]);
         }
       } finally {
@@ -429,32 +315,61 @@ export default function Dashboard() {
     if (activeView === "reservations") return "Správa rezervací";
     if (activeView === "rooms") return "Správa pokojů";
     if (activeView === "services") return "Správa služeb";
+    if (activeView === "customers") return "Správa zákazníků";
     return "Správa zaměstnanců";
   }, [activeView]);
 
   const filteredOccupancyRooms = useMemo(() => {
-    if (occupancyCapacityMode === "all") {
-      return rooms;
-    }
-    const limit = Number(occupancyCapacityValue);
-    if (!Number.isFinite(limit) || limit <= 0) {
-      return rooms;
-    }
     return rooms.filter((room) => {
-      const capacity = Number(room.capacity ?? 0);
-      if (!Number.isFinite(capacity) || capacity <= 0) return false;
-      if (occupancyCapacityMode === "exact") {
-        return capacity === limit;
+      if (occupancyCapacityMode !== "all") {
+        const capacity = Number(room.capacity ?? 0);
+        const limit = Number(occupancyCapacityValue);
+        if (!Number.isFinite(capacity) || capacity <= 0) return false;
+        if (!Number.isFinite(limit) || limit <= 0) {
+          return true;
+        }
+        if (occupancyCapacityMode === "exact" && capacity !== limit) {
+          return false;
+        }
+        if (occupancyCapacityMode === "min" && capacity < limit) {
+          return false;
+        }
       }
-      return capacity >= limit;
+
+      if (occupancyAmenityIds.length > 0) {
+        const roomServiceIds = getRoomServiceIds(room);
+        const hasAllSelectedAmenities = occupancyAmenityIds.every((amenityId) =>
+          roomServiceIds.includes(String(amenityId))
+        );
+        if (!hasAllSelectedAmenities) {
+          return false;
+        }
+      }
+
+      return true;
     });
-  }, [rooms, occupancyCapacityMode, occupancyCapacityValue]);
+  }, [rooms, occupancyCapacityMode, occupancyCapacityValue, occupancyAmenityIds]);
+
+  const hydratedReservations = useMemo(
+    () => reservations.map((reservation) => enrichReservation(reservation, rooms, customers, employees, services)),
+    [reservations, rooms, customers, employees, services]
+  );
+
+  useEffect(() => {
+    if (!selectedReservation?.id) return;
+    const freshReservation = hydratedReservations.find(
+      (reservation) => Number(reservation.id) === Number(selectedReservation.id)
+    );
+    if (freshReservation) {
+      setSelectedReservation(freshReservation);
+    }
+  }, [hydratedReservations, selectedReservation?.id]);
 
   // Klientska filtrace a razeni seznamu rezervaci pro sekci "Sprava rezervaci".
   const filteredReservations = useMemo(() => {
     const normalizedSearch = reservationFilters.search.trim().toLowerCase();
 
-    const filtered = reservations.filter((reservation) => {
+    const filtered = hydratedReservations.filter((reservation) => {
       if (reservationFilters.status !== "ALL" && reservation.status !== reservationFilters.status) {
         return false;
       }
@@ -512,7 +427,7 @@ export default function Dashboard() {
       const bText = String(b[field] ?? "").toLowerCase();
       return aText.localeCompare(bText, "cs") * direction;
     });
-  }, [reservations, reservationFilters, reservationSort]);
+  }, [hydratedReservations, reservationFilters, reservationSort]);
 
   const reservationTotalPages = useMemo(
     () => Math.max(1, Math.ceil(filteredReservations.length / RESERVATIONS_PAGE_SIZE)),
@@ -774,7 +689,7 @@ export default function Dashboard() {
           email: createForm.newCustomerEmail.trim(),
           phone: createForm.newCustomerPhone.trim(),
         };
-        const customerRes = await fetch("/api/customers", {
+        const customerRes = await fetch(apiUrl("/customers"), {
           method: "POST",
           headers,
           body: JSON.stringify(customerPayload),
@@ -801,7 +716,7 @@ export default function Dashboard() {
         customerId: Number(customerId),
       };
 
-      const reservationRes = await fetch("/api/reservations", {
+      const reservationRes = await fetch(apiUrl("/reservations"), {
         method: "POST",
         headers,
         body: JSON.stringify(reservationPayload),
@@ -815,9 +730,9 @@ export default function Dashboard() {
       setCreateStatus({ type: "success", message: "Rezervace byla vytvořena." });
 
       const [roomsRes, reservationsRes, customersRes] = await Promise.all([
-        fetch("/api/rooms", { headers: { Authorization: authHeader, Accept: "application/json" } }),
-        fetch("/api/reservations", { headers: { Authorization: authHeader, Accept: "application/json" } }),
-        fetch("/api/customers", { headers: { Authorization: authHeader, Accept: "application/json" } }),
+        fetch(apiUrl("/rooms"), { headers: { Authorization: authHeader, Accept: "application/json" } }),
+        fetch(apiUrl("/reservations"), { headers: { Authorization: authHeader, Accept: "application/json" } }),
+        fetch(apiUrl("/customers"), { headers: { Authorization: authHeader, Accept: "application/json" } }),
       ]);
       if (roomsRes.ok) {
         const roomsData = await roomsRes.json();
@@ -878,7 +793,7 @@ export default function Dashboard() {
         Accept: "application/json",
         "Content-Type": "application/json",
       };
-      const updateRes = await fetch(`/api/reservations/${selectedReservation.id}`, {
+      const updateRes = await fetch(apiUrl(`/reservations/${selectedReservation.id}`), {
         method: "PUT",
         headers,
         body: JSON.stringify(payload),
@@ -893,8 +808,8 @@ export default function Dashboard() {
       setReservationActionStatus({ type: "success", message: "Rezervace byla upravena." });
 
       const [roomsRes, reservationsRes] = await Promise.all([
-        fetch("/api/rooms", { headers: { Authorization: authHeader, Accept: "application/json" } }),
-        fetch("/api/reservations", { headers: { Authorization: authHeader, Accept: "application/json" } }),
+        fetch(apiUrl("/rooms"), { headers: { Authorization: authHeader, Accept: "application/json" } }),
+        fetch(apiUrl("/reservations"), { headers: { Authorization: authHeader, Accept: "application/json" } }),
       ]);
       if (roomsRes.ok) {
         const roomsData = await roomsRes.json();
@@ -927,7 +842,7 @@ export default function Dashboard() {
         Accept: "application/json",
         "Content-Type": "application/json",
       };
-      const updateRes = await fetch(`/api/reservations/${selectedReservation.id}`, {
+      const updateRes = await fetch(apiUrl(`/reservations/${selectedReservation.id}`), {
         method: "PUT",
         headers,
         body: JSON.stringify(payload),
@@ -940,7 +855,7 @@ export default function Dashboard() {
       setSelectedReservation(updated);
       setReservationActionStatus({ type: "success", message: "Stavy byly upraveny." });
 
-      const reservationsRes = await fetch("/api/reservations", {
+      const reservationsRes = await fetch(apiUrl("/reservations"), {
         headers: { Authorization: authHeader, Accept: "application/json" },
       });
       if (reservationsRes.ok) {
@@ -969,7 +884,7 @@ export default function Dashboard() {
     }
     setReservationActionStatus({ type: "loading", message: "Ruším rezervaci..." });
     try {
-      const res = await fetch(`/api/reservations/${selectedReservation.id}`, {
+      const res = await fetch(apiUrl(`/reservations/${selectedReservation.id}`), {
         method: "DELETE",
         headers: {
           Authorization: authHeader,
@@ -982,8 +897,8 @@ export default function Dashboard() {
       }
 
       const [roomsRes, reservationsRes] = await Promise.all([
-        fetch("/api/rooms", { headers: { Authorization: authHeader, Accept: "application/json" } }),
-        fetch("/api/reservations", { headers: { Authorization: authHeader, Accept: "application/json" } }),
+        fetch(apiUrl("/rooms"), { headers: { Authorization: authHeader, Accept: "application/json" } }),
+        fetch(apiUrl("/reservations"), { headers: { Authorization: authHeader, Accept: "application/json" } }),
       ]);
       if (roomsRes.ok) {
         const roomsData = await roomsRes.json();
@@ -1005,9 +920,11 @@ export default function Dashboard() {
     setRoomStatus({ type: "idle", message: "" });
     setRoomForm({
       number: "",
-      type: "STANDARD",
+      typeId: roomTypes[0]?.id != null ? String(roomTypes[0].id) : "",
+      typeName: roomTypes[0]?.name ?? "",
       capacity: 2,
       pricePerNight: "",
+      roomServiceIds: [],
       active: true,
     });
   }
@@ -1050,7 +967,7 @@ export default function Dashboard() {
   }
 
   async function refreshServices() {
-    const servicesRes = await fetch("/api/services", {
+    const servicesRes = await fetch(apiUrl("/services"), {
       headers: { Authorization: authHeader, Accept: "application/json" },
     });
     if (!servicesRes.ok) {
@@ -1058,6 +975,17 @@ export default function Dashboard() {
     }
     const servicesData = await servicesRes.json();
     setServices(Array.isArray(servicesData) ? servicesData : []);
+  }
+
+  async function refreshRoomAmenities() {
+    const roomAmenitiesRes = await fetch(apiUrl("/room-amenities"), {
+      headers: { Authorization: authHeader, Accept: "application/json" },
+    });
+    if (!roomAmenitiesRes.ok) {
+      throw new Error(`Načtení vybavení pokojů selhalo (${roomAmenitiesRes.status})`);
+    }
+    const roomAmenitiesData = await roomAmenitiesRes.json();
+    setRoomAmenities(Array.isArray(roomAmenitiesData) ? roomAmenitiesData : []);
   }
 
   async function submitServiceEditor() {
@@ -1080,7 +1008,7 @@ export default function Dashboard() {
         "Content-Type": "application/json",
       };
       const isEdit = serviceEditor?.mode === "edit" && serviceEditor.serviceId != null;
-      const url = isEdit ? `/api/services/${serviceEditor.serviceId}` : "/api/services";
+      const url = isEdit ? apiUrl(`/services/${serviceEditor.serviceId}`) : apiUrl("/services");
       const method = isEdit ? "PUT" : "POST";
 
       const res = await fetch(url, {
@@ -1109,7 +1037,7 @@ export default function Dashboard() {
 
     setServiceStatus({ type: "loading", message: "Mažu službu..." });
     try {
-      const res = await fetch(`/api/services/${service.id}`, {
+      const res = await fetch(apiUrl(`/services/${service.id}`), {
         method: "DELETE",
         headers: {
           Authorization: authHeader,
@@ -1141,14 +1069,124 @@ export default function Dashboard() {
     }
   }
 
+  function openCreateRoomAmenity() {
+    setRoomAmenityEditor({ mode: "create", serviceId: null });
+    setRoomAmenityStatus({ type: "idle", message: "" });
+    setRoomAmenityForm({
+      name: "",
+      description: "",
+    });
+  }
+
+  function openEditRoomAmenity(service) {
+    setRoomAmenityEditor({ mode: "edit", serviceId: service.id });
+    setRoomAmenityStatus({ type: "idle", message: "" });
+    setRoomAmenityForm({
+      name: service.name ?? "",
+      description: service.description ?? "",
+    });
+  }
+
+  function closeRoomAmenityEditor() {
+    setRoomAmenityEditor(null);
+    setRoomAmenityStatus({ type: "idle", message: "" });
+  }
+
+  function updateRoomAmenityForm(field, value) {
+    setRoomAmenityForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  function validateRoomAmenityForm() {
+    if (!roomAmenityForm.name?.trim()) return "Název room service je povinný.";
+    if (!roomAmenityForm.description?.trim()) return "Popis room service je povinný.";
+    return "";
+  }
+
+  async function submitRoomAmenityEditor() {
+    const validation = validateRoomAmenityForm();
+    if (validation) {
+      setRoomAmenityStatus({ type: "error", message: validation });
+      return;
+    }
+
+    setRoomAmenityStatus({ type: "loading", message: "Ukládám room service..." });
+    try {
+      const payload = {
+        name: roomAmenityForm.name.trim(),
+        description: roomAmenityForm.description.trim(),
+      };
+      const headers = {
+        Authorization: authHeader,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      };
+      const isEdit = roomAmenityEditor?.mode === "edit" && roomAmenityEditor.serviceId != null;
+      const url = isEdit
+        ? apiUrl(`/room-amenities/${roomAmenityEditor.serviceId}`)
+        : apiUrl("/room-amenities");
+      const method = isEdit ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method,
+        headers,
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(`Uložení room service selhalo (${res.status})${txt ? `: ${txt}` : ""}`);
+      }
+
+      await refreshRoomAmenities();
+      setRoomAmenityStatus({ type: "success", message: "Room service byla uložena." });
+      closeRoomAmenityEditor();
+    } catch (err) {
+      setRoomAmenityStatus({ type: "error", message: err.message || "Nepodařilo se uložit room service." });
+    }
+  }
+
+  async function deleteRoomAmenity(service) {
+    if (!service?.id) return;
+    if (!window.confirm(`Opravdu chceš smazat room service ${service.name}?`)) {
+      return;
+    }
+
+    setRoomAmenityStatus({ type: "loading", message: "Mažu room service..." });
+    try {
+      const res = await fetch(apiUrl(`/room-amenities/${service.id}`), {
+        method: "DELETE",
+        headers: {
+          Authorization: authHeader,
+          Accept: "application/json",
+        },
+      });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(`Smazání room service selhalo (${res.status})${txt ? `: ${txt}` : ""}`);
+      }
+
+      await refreshRoomAmenities();
+      setRoomAmenityStatus({ type: "success", message: "Room service byla smazána." });
+      setRoomForm((prev) => ({
+        ...prev,
+        roomServiceIds: (Array.isArray(prev.roomServiceIds) ? prev.roomServiceIds : []).filter(
+          (id) => String(id) !== String(service.id)
+        ),
+      }));
+    } catch (err) {
+      setRoomAmenityStatus({ type: "error", message: err.message || "Nepodařilo se smazat room service." });
+    }
+  }
+
   function openEditRoom(room) {
     setRoomEditor({ mode: "edit", roomId: room.id });
     setRoomStatus({ type: "idle", message: "" });
     setRoomForm({
       number: room.number ?? "",
-      type: room.type ?? "STANDARD",
+      typeId: getRoomTypeId(room),
+      typeName: getRoomTypeName(room),
       capacity: room.capacity ?? 1,
       pricePerNight: room.pricePerNight ?? "",
+      roomServiceIds: getRoomServiceIds(room),
       active: room.active !== false,
     });
   }
@@ -1162,13 +1200,153 @@ export default function Dashboard() {
     setRoomForm((prev) => ({ ...prev, [field]: value }));
   }
 
+  function toggleRoomAmenity(serviceId, enabled) {
+    const normalizedId = String(serviceId);
+    setRoomForm((prev) => {
+      const current = Array.isArray(prev.roomServiceIds) ? prev.roomServiceIds.map(String) : [];
+      const exists = current.includes(normalizedId);
+
+      if (enabled && !exists) {
+        return { ...prev, roomServiceIds: [...current, normalizedId] };
+      }
+      if (!enabled && exists) {
+        return { ...prev, roomServiceIds: current.filter((id) => id !== normalizedId) };
+      }
+      return prev;
+    });
+  }
+
   function validateRoomForm() {
     if (!roomForm.number?.trim()) return "Číslo pokoje je povinné.";
+    if (!roomForm.typeId && !roomForm.typeName?.trim()) return "Typ pokoje je povinný.";
     const capacity = Number(roomForm.capacity);
     if (!capacity || capacity <= 0) return "Kapacita musí být větší než 0.";
     const price = Number(roomForm.pricePerNight);
     if (Number.isNaN(price) || price < 0) return "Cena za noc musí být číslo >= 0.";
     return "";
+  }
+
+  function openCreateCustomer() {
+    setCustomerEditor({ mode: "create", customerId: null });
+    setCustomerStatus({ type: "idle", message: "" });
+    setCustomerForm({
+      name: "",
+      dateOfBirth: "",
+      email: "",
+      phone: "",
+    });
+  }
+
+  function openEditCustomer(customer) {
+    setCustomerEditor({ mode: "edit", customerId: customer.id });
+    setCustomerStatus({ type: "idle", message: "" });
+    setCustomerForm({
+      name: customer.name ?? "",
+      dateOfBirth: customer.dateOfBirth ?? "",
+      email: customer.email ?? "",
+      phone: customer.phone ?? "",
+    });
+  }
+
+  function closeCustomerEditor() {
+    setCustomerEditor(null);
+    setCustomerStatus({ type: "idle", message: "" });
+  }
+
+  function updateCustomerForm(field, value) {
+    setCustomerForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  function validateCustomerForm() {
+    if (!customerForm.name?.trim()) return "Jméno zákazníka je povinné.";
+    if (!customerForm.dateOfBirth) return "Datum narození je povinné.";
+    if (calculateAgeFromDate(customerForm.dateOfBirth) == null) return "Datum narození musí být platné.";
+    if (!customerForm.phone?.trim()) return "Telefon je povinný.";
+    return "";
+  }
+
+  async function refreshCustomers() {
+    const customersRes = await fetch(apiUrl("/customers"), {
+      headers: { Authorization: authHeader, Accept: "application/json" },
+    });
+    if (!customersRes.ok) {
+      if (customersRes.status === 401 || customersRes.status === 403) {
+        setCustomers([]);
+        return;
+      }
+      throw new Error(`Načtení zákazníků selhalo (${customersRes.status})`);
+    }
+    const customersData = await customersRes.json();
+    setCustomers(Array.isArray(customersData) ? customersData : []);
+  }
+
+  async function submitCustomerEditor() {
+    const validation = validateCustomerForm();
+    if (validation) {
+      setCustomerStatus({ type: "error", message: validation });
+      return;
+    }
+
+    setCustomerStatus({ type: "loading", message: "Ukládám zákazníka..." });
+    try {
+      const payload = {
+        name: customerForm.name.trim(),
+        dateOfBirth: customerForm.dateOfBirth,
+        email: customerForm.email.trim(),
+        phone: customerForm.phone.trim(),
+      };
+      const headers = {
+        Authorization: authHeader,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      };
+      const isEdit = customerEditor?.mode === "edit" && customerEditor.customerId != null;
+      const url = isEdit ? apiUrl(`/customers/${customerEditor.customerId}`) : apiUrl("/customers");
+      const method = isEdit ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method,
+        headers,
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(`Uložení zákazníka selhalo (${res.status})${txt ? `: ${txt}` : ""}`);
+      }
+
+      await refreshCustomers();
+      setCustomerStatus({ type: "success", message: "Zákazník byl uložen." });
+      closeCustomerEditor();
+    } catch (err) {
+      setCustomerStatus({ type: "error", message: err.message || "Nepodařilo se uložit zákazníka." });
+    }
+  }
+
+  async function deleteCustomer(customer) {
+    if (!customer?.id) return;
+    if (!window.confirm(`Opravdu chceš smazat zákazníka ${customer.name}?`)) {
+      return;
+    }
+
+    setCustomerStatus({ type: "loading", message: "Mažu zákazníka..." });
+    try {
+      const res = await fetch(apiUrl(`/customers/${customer.id}`), {
+        method: "DELETE",
+        headers: {
+          Authorization: authHeader,
+          Accept: "application/json",
+        },
+      });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(`Smazání zákazníka selhalo (${res.status})${txt ? `: ${txt}` : ""}`);
+      }
+
+      await refreshCustomers();
+      setCustomerStatus({ type: "success", message: "Zákazník byl smazán." });
+    } catch (err) {
+      setCustomerStatus({ type: "error", message: err.message || "Nepodařilo se smazat zákazníka." });
+    }
   }
 
   function openCreateEmployee() {
@@ -1228,7 +1406,7 @@ export default function Dashboard() {
   }
 
   async function refreshEmployees() {
-    const employeesRes = await fetch("/api/employees", {
+    const employeesRes = await fetch(apiUrl("/employees"), {
       headers: { Authorization: authHeader, Accept: "application/json" },
     });
     if (!employeesRes.ok) {
@@ -1266,7 +1444,7 @@ export default function Dashboard() {
         "Content-Type": "application/json",
       };
       const isEdit = employeeEditor?.mode === "edit" && employeeEditor.employeeId != null;
-      const url = isEdit ? `/api/employees/${employeeEditor.employeeId}` : "/api/employees";
+      const url = isEdit ? apiUrl(`/employees/${employeeEditor.employeeId}`) : apiUrl("/employees");
       const method = isEdit ? "PUT" : "POST";
 
       const res = await fetch(url, {
@@ -1294,7 +1472,7 @@ export default function Dashboard() {
     }
     setEmployeeStatus({ type: "loading", message: "Mažu zaměstnance..." });
     try {
-      const res = await fetch(`/api/employees/${employee.id}`, {
+      const res = await fetch(apiUrl(`/employees/${employee.id}`), {
         method: "DELETE",
         headers: {
           Authorization: authHeader,
@@ -1348,7 +1526,7 @@ export default function Dashboard() {
     }
     setEmployeePasswordStatus({ type: "loading", message: "Měním heslo..." });
     try {
-      const res = await fetch(`/api/employees/${employeePasswordEditor.employeeId}`, {
+      const res = await fetch(apiUrl(`/employees/${employeePasswordEditor.employeeId}`), {
         method: "PUT",
         headers: {
           Authorization: authHeader,
@@ -1378,12 +1556,14 @@ export default function Dashboard() {
     setRoomStatus({ type: "loading", message: "Ukládám pokoj..." });
 
     try {
+      const selectedRoomType = roomTypes.find((type) => String(type.id) === String(roomForm.typeId));
       const payload = {
         number: roomForm.number.trim(),
-        type: roomForm.type.trim() || "STANDARD",
+        typeId: selectedRoomType?.id ?? null,
+        typeName: selectedRoomType?.name ?? roomForm.typeName.trim(),
         capacity: Number(roomForm.capacity),
         pricePerNight: Number(roomForm.pricePerNight),
-        active: !!roomForm.active,
+        roomServiceIds: (Array.isArray(roomForm.roomServiceIds) ? roomForm.roomServiceIds : []).map(Number),
       };
       const headers = {
         Authorization: authHeader,
@@ -1391,7 +1571,7 @@ export default function Dashboard() {
         "Content-Type": "application/json",
       };
       const isEdit = roomEditor?.mode === "edit" && roomEditor.roomId != null;
-      const url = isEdit ? `/api/rooms/${roomEditor.roomId}` : "/api/rooms";
+      const url = isEdit ? apiUrl(`/rooms/${roomEditor.roomId}`) : apiUrl("/rooms");
       const method = isEdit ? "PUT" : "POST";
 
       const res = await fetch(url, {
@@ -1405,9 +1585,9 @@ export default function Dashboard() {
       }
 
       const [roomsRes, reservationsRes, customersRes] = await Promise.all([
-        fetch("/api/rooms", { headers: { Authorization: authHeader, Accept: "application/json" } }),
-        fetch("/api/reservations", { headers: { Authorization: authHeader, Accept: "application/json" } }),
-        fetch("/api/customers", { headers: { Authorization: authHeader, Accept: "application/json" } }),
+        fetch(apiUrl("/rooms"), { headers: { Authorization: authHeader, Accept: "application/json" } }),
+        fetch(apiUrl("/reservations"), { headers: { Authorization: authHeader, Accept: "application/json" } }),
+        fetch(apiUrl("/customers"), { headers: { Authorization: authHeader, Accept: "application/json" } }),
       ]);
       if (roomsRes.ok) {
         const roomsData = await roomsRes.json();
@@ -1452,6 +1632,9 @@ export default function Dashboard() {
             setOccupancyCapacityMode={setOccupancyCapacityMode}
             occupancyCapacityValue={occupancyCapacityValue}
             setOccupancyCapacityValue={setOccupancyCapacityValue}
+            occupancyAmenityIds={occupancyAmenityIds}
+            setOccupancyAmenityIds={setOccupancyAmenityIds}
+            roomAmenities={roomAmenities}
             filteredOccupancyRooms={filteredOccupancyRooms}
             rooms={rooms}
             goPrevWeek={goPrevWeek}
@@ -1467,7 +1650,7 @@ export default function Dashboard() {
             weekDays={weekDays}
             formatMonthLabel={formatMonthLabel}
             formatDayLabel={formatDayLabel}
-            reservations={reservations}
+            reservations={hydratedReservations}
             getCellOccupancy={getCellOccupancy}
             openCreateReservation={openCreateReservation}
             openReservationDetail={openReservationDetail}
@@ -1489,7 +1672,7 @@ export default function Dashboard() {
             setReservationPage={setReservationPage}
             reservationTotalPages={reservationTotalPages}
             pageSize={RESERVATIONS_PAGE_SIZE}
-            reservations={reservations}
+            reservations={hydratedReservations}
             resetReservationFilters={resetReservationFilters}
             openReservationDetail={openReservationDetail}
             formatDate={formatDate}
@@ -1503,19 +1686,39 @@ export default function Dashboard() {
             error={error}
             rooms={rooms}
             formatMoney={formatMoney}
+            getRoomTypeName={getRoomTypeName}
+            formatRoomServices={formatRoomServices}
             openEditRoom={openEditRoom}
           />
         ) : activeView === "services" ? (
           <ServicesSection
             canManageServices={canManageServices}
             openCreateService={openCreateService}
+            openCreateRoomAmenity={openCreateRoomAmenity}
             loading={loading}
             error={error}
             serviceStatus={serviceStatus}
+            roomAmenityStatus={roomAmenityStatus}
             services={services}
+            roomAmenities={roomAmenities}
             formatMoney={formatMoney}
             openEditService={openEditService}
             deleteService={deleteService}
+            openEditRoomAmenity={openEditRoomAmenity}
+            deleteRoomAmenity={deleteRoomAmenity}
+          />
+        ) : activeView === "customers" ? (
+          <CustomersSection
+            canManageCustomers={canManageCustomers}
+            openCreateCustomer={openCreateCustomer}
+            loading={loading}
+            error={error}
+            customerStatus={customerStatus}
+            customers={customers}
+            formatDate={formatDate}
+            calculateAgeFromDate={calculateAgeFromDate}
+            openEditCustomer={openEditCustomer}
+            deleteCustomer={deleteCustomer}
           />
         ) : (
           <EmployeesSection
@@ -1531,863 +1734,105 @@ export default function Dashboard() {
         )}
       </section>
 
-      {/* Modal: detail a editace existujici rezervace */}
-      {selectedReservation ? (
-        <div className="reservation-modal-backdrop" onClick={closeReservationDetail}>
-          <section
-            className="reservation-modal"
-            onClick={(e) => e.stopPropagation()}
-            aria-label="Detail rezervace"
-          >
-            <header className="reservation-modal__head">
-              <h3>Detail rezervace #{selectedReservation.id}</h3>
-              <button
-                className="btn btn--secondary btn--compact"
-                type="button"
-                onClick={closeReservationDetail}
-              >
-                Zavřít
-              </button>
-            </header>
+      <ReservationDetailModal
+        selectedReservation={selectedReservation}
+        closeReservationDetail={closeReservationDetail}
+        reservationEditMode={reservationEditMode}
+        setReservationEditMode={setReservationEditMode}
+        reservationEditForm={reservationEditForm}
+        updateReservationEditForm={updateReservationEditForm}
+        reservationActionStatus={reservationActionStatus}
+        services={services}
+        toggleReservationService={toggleReservationService}
+        updateReservationServiceQuantity={updateReservationServiceQuantity}
+        RESERVATION_STATUSES={RESERVATION_STATUSES}
+        PAYMENT_STATUSES={PAYMENT_STATUSES}
+        submitReservationUpdate={submitReservationUpdate}
+        submitReservationStatusUpdate={submitReservationStatusUpdate}
+        cancelReservation={cancelReservation}
+        setReservationActionStatus={setReservationActionStatus}
+      />
 
-            {reservationEditMode ? (
-              <>
-                <div className="reservation-form-grid">
-                  <label>
-                    <span>Začátek rezervace</span>
-                    <input
-                      type="date"
-                      value={reservationEditForm.checkInDate}
-                      onChange={(e) => updateReservationEditForm("checkInDate", e.target.value)}
-                    />
-                  </label>
-                  <label>
-                    <span>Konec rezervace</span>
-                    <input
-                      type="date"
-                      value={reservationEditForm.checkOutDate}
-                      onChange={(e) => updateReservationEditForm("checkOutDate", e.target.value)}
-                    />
-                  </label>
-                  <label>
-                    <span>Počet hostů</span>
-                    <input
-                      type="number"
-                      min={1}
-                      max={selectedReservation.roomCapacity ?? 50}
-                      value={reservationEditForm.numberOfGuests}
-                      onChange={(e) => updateReservationEditForm("numberOfGuests", e.target.value)}
-                    />
-                  </label>
-                  <label>
-                    <span>Stav rezervace</span>
-                    <select
-                      value={reservationEditForm.status}
-                      onChange={(e) => updateReservationEditForm("status", e.target.value)}
-                    >
-                      {RESERVATION_STATUSES.map((statusValue) => (
-                        <option key={statusValue} value={statusValue}>
-                          {statusValue}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    <span>Stav platby</span>
-                    <select
-                      value={reservationEditForm.paymentStatus}
-                      onChange={(e) => updateReservationEditForm("paymentStatus", e.target.value)}
-                    >
-                      {PAYMENT_STATUSES.map((statusValue) => (
-                        <option key={statusValue} value={statusValue}>
-                          {statusValue}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="reservation-form-grid__full">
-                    <span>Speciální požadavky</span>
-                    <textarea
-                      rows={2}
-                      value={reservationEditForm.specialRequests}
-                      onChange={(e) => updateReservationEditForm("specialRequests", e.target.value)}
-                    />
-                  </label>
-                  <fieldset className="reservation-customer-box reservation-form-grid__full">
-                    <legend>Doplňkové služby</legend>
-                    {services.length === 0 ? (
-                      <div className="customer-search-hint">Nejsou k dispozici žádné vytvořené služby.</div>
-                    ) : (
-                      <div className="new-customer-grid">
-                        {services.map((service) => {
-                          const selectedItem = normalizeServiceSelections(reservationEditForm.serviceItems).find(
-                            (item) => item.serviceId === String(service.id)
-                          );
-                          return (
-                            <label key={`edit-service-${service.id}`}>
-                              <span>
-                                <input
-                                  type="checkbox"
-                                  checked={!!selectedItem}
-                                  onChange={(e) => toggleReservationService(service.id, e.target.checked)}
-                                />
-                                {" "}
-                                {service.name} ({formatMoney(service.price)})
-                              </span>
-                              <input
-                                type="number"
-                                min={1}
-                                value={selectedItem?.quantity ?? 1}
-                                disabled={!selectedItem}
-                                onChange={(e) => updateReservationServiceQuantity(service.id, e.target.value)}
-                              />
-                            </label>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </fieldset>
-                </div>
+      <ReservationCreateModal
+        createSlot={createSlot}
+        closeCreateReservation={closeCreateReservation}
+        createStep={createStep}
+        createStatus={createStatus}
+        createForm={createForm}
+        updateCreateForm={updateCreateForm}
+        services={services}
+        toggleCreateService={toggleCreateService}
+        updateCreateServiceQuantity={updateCreateServiceQuantity}
+        customerSearch={customerSearch}
+        setCustomerSearch={setCustomerSearch}
+        filteredCustomers={filteredCustomers}
+        validateCreateForm={validateCreateForm}
+        setCreateStatus={setCreateStatus}
+        setCreateStep={setCreateStep}
+        submitReservationCreate={submitReservationCreate}
+        createPreview={createPreview}
+        customers={customers}
+      />
 
-                {reservationActionStatus.message ? (
-                  <p
-                    className={`status status--${
-                      reservationActionStatus.type === "idle" ? "neutral" : reservationActionStatus.type
-                    }`}
-                  >
-                    {reservationActionStatus.message}
-                  </p>
-                ) : null}
+      <ServiceEditorModal
+        serviceEditor={serviceEditor}
+        serviceForm={serviceForm}
+        serviceStatus={serviceStatus}
+        updateServiceForm={updateServiceForm}
+        closeServiceEditor={closeServiceEditor}
+        submitServiceEditor={submitServiceEditor}
+      />
 
-                <div className="reservation-actions">
-                  <button
-                    className="btn btn--secondary"
-                    type="button"
-                    onClick={() => {
-                      setReservationEditMode(false);
-                      setReservationActionStatus({ type: "idle", message: "" });
-                    }}
-                  >
-                    Zpět
-                  </button>
-                  <button className="btn btn--primary" type="button" onClick={submitReservationUpdate}>
-                    Uložit změny
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="reservation-detail-sections">
-                  <section className="reservation-detail-section">
-                    {/*<h4>Terminy rezervace</h4>*/}
-                    <div className="reservation-detail-grid">
-                      <div className="reservation-detail-item">
-                        <span className="reservation-detail-item__label">Vytvoření rezervace</span>
-                        <span>{formatDateTime(selectedReservation.createdAt)}</span>
-                      </div>
-                      <div className="reservation-detail-item">
-                        <span className="reservation-detail-item__label"> </span>
-                        
-                      </div>
-                      <div className="reservation-detail-item">
-                        <span className="reservation-detail-item__label">Od</span>
-                        <span>{formatDate(selectedReservation.checkInDate)}</span>
-                      </div>
-                      <div className="reservation-detail-item">
-                        <span className="reservation-detail-item__label">Do</span>
-                        <span>{formatDate(selectedReservation.checkOutDate)}</span>
-                      </div>
-                      <div className="reservation-detail-item">
-                        <span className="reservation-detail-item__label">Stav rezervace</span>
-                        <select
-                          value={reservationEditForm.status}
-                          onChange={(e) => updateReservationEditForm("status", e.target.value)}
-                        >
-                          {RESERVATION_STATUSES.map((statusValue) => (
-                            <option key={statusValue} value={statusValue}>
-                              {statusValue}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="reservation-detail-item">
-                        <span className="reservation-detail-item__label">Počet hostů</span>
-                        <span>{selectedReservation.numberOfGuests ?? "-"}</span>
-                      </div>
-                      <div className="reservation-detail-item">
-                        <span className="reservation-detail-item__label">Specialní požadavky</span>
-                        <span>{selectedReservation.specialRequests || "-"}</span>
-                      </div>
-                    </div>
-                  </section>
+      <RoomAmenityEditorModal
+        roomAmenityEditor={roomAmenityEditor}
+        roomAmenityForm={roomAmenityForm}
+        roomAmenityStatus={roomAmenityStatus}
+        updateRoomAmenityForm={updateRoomAmenityForm}
+        closeRoomAmenityEditor={closeRoomAmenityEditor}
+        submitRoomAmenityEditor={submitRoomAmenityEditor}
+      />
 
-                  <section className="reservation-detail-section">
-                    {/* <h4>Platba</h4> */}
-                    <div className="reservation-detail-grid">
-                      <div className="reservation-detail-item">
-                        <span className="reservation-detail-item__label">Stav platby</span>
-                        <select
-                          value={reservationEditForm.paymentStatus}
-                          onChange={(e) => updateReservationEditForm("paymentStatus", e.target.value)}
-                        >
-                          {PAYMENT_STATUSES.map((statusValue) => (
-                            <option key={statusValue} value={statusValue}>
-                              {statusValue}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="reservation-detail-item">
-                        <span className="reservation-detail-item__label">Cena celkem</span>
-                        <span>{formatMoney(selectedReservation.totalPrice)}</span>
-                      </div>
-                    </div>
-                  </section>
+      <RoomEditorModal
+        roomEditor={roomEditor}
+        roomForm={roomForm}
+        roomStatus={roomStatus}
+        closeRoomEditor={closeRoomEditor}
+        updateRoomForm={updateRoomForm}
+        roomTypes={roomTypes}
+        setRoomForm={setRoomForm}
+        roomAmenities={roomAmenities}
+        toggleRoomAmenity={toggleRoomAmenity}
+        submitRoomEditor={submitRoomEditor}
+      />
 
-                  <section className="reservation-detail-section">
-                    <h4>Služby v rezervaci</h4>
-                    <div className="reservation-detail-grid">
-                      {Array.isArray(selectedReservation.serviceItems) && selectedReservation.serviceItems.length > 0 ? (
-                        selectedReservation.serviceItems.map((item, index) => (
-                          <div className="reservation-detail-item" key={`reservation-service-${item.id ?? index}`}>
-                            <span className="reservation-detail-item__label">
-                              {item.service?.name ?? `Služba #${item.service?.id ?? index + 1}`}
-                            </span>
-                            <span>
-                              {item.quantity ?? 1}x {formatMoney(item.priceAtTime)} = {formatMoney(item.totalPrice)}
-                            </span>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="reservation-detail-item">
-                          <span className="reservation-detail-item__label">Služby</span>
-                          <span>Žádné doplňkové služby.</span>
-                        </div>
-                      )}
-                    </div>
-                  </section>
+      <CustomerEditorModal
+        customerEditor={customerEditor}
+        customerForm={customerForm}
+        customerStatus={customerStatus}
+        closeCustomerEditor={closeCustomerEditor}
+        updateCustomerForm={updateCustomerForm}
+        submitCustomerEditor={submitCustomerEditor}
+      />
 
-                  <section className="reservation-detail-section">
-                    {/* <h4>Pokoj</h4> */}
-                    <div className="reservation-detail-grid">
-                      <div className="reservation-detail-item">
-                        <span className="reservation-detail-item__label">Pokoj</span>
-                        <span>{selectedReservation.roomNumber ?? "-"}</span>
-                      </div>
-                      <div className="reservation-detail-item">
-                        <span className="reservation-detail-item__label">Typ pokoje</span>
-                        <span>{selectedReservation.roomType ?? "-"}</span>
-                      </div>
-                      <div className="reservation-detail-item">
-                        <span className="reservation-detail-item__label">Kapacita pokoje</span>
-                        <span>{selectedReservation.roomCapacity ?? "-"}</span>
-                      </div>
-                      <div className="reservation-detail-item">
-                        <span className="reservation-detail-item__label">Cena za noc</span>
-                        <span>{formatMoney(selectedReservation.roomPricePerNight)}</span>
-                      </div>
-                    </div>
-                  </section>
+      <EmployeeEditorModal
+        employeeEditor={employeeEditor}
+        employeeForm={employeeForm}
+        employeeStatus={employeeStatus}
+        closeEmployeeEditor={closeEmployeeEditor}
+        updateEmployeeForm={updateEmployeeForm}
+        EMPLOYEE_ROLES={EMPLOYEE_ROLES}
+        openEmployeePasswordEditor={openEmployeePasswordEditor}
+        submitEmployeeEditor={submitEmployeeEditor}
+      />
 
-                  <section className="reservation-detail-section">
-                    {/* <h4>Zakaznik</h4> */}
-                    <div className="reservation-detail-grid">
-                      <div className="reservation-detail-item">
-                        <span className="reservation-detail-item__label">Jméno zákazníka</span>
-                        <span>{selectedReservation.customerName ?? "-"}</span>
-                      </div>
-                      <div className="reservation-detail-item">
-                        <span className="reservation-detail-item__label">E-mail</span>
-                        <span>{selectedReservation.customerEmail ?? "-"}</span>
-                      </div>
-                      <div className="reservation-detail-item">
-                        <span className="reservation-detail-item__label">Telefon</span>
-                        <span>{selectedReservation.customerPhone ?? "-"}</span>
-                      </div>
-                      <div className="reservation-detail-item">
-                        <span className="reservation-detail-item__label">Datum narození</span>
-                        <span>{formatDate(selectedReservation.customerDateOfBirth)}</span>
-                      </div>
-                      <div className="reservation-detail-item">
-                        <span className="reservation-detail-item__label">Věk</span>
-                        <span>{calculateAgeFromDate(selectedReservation.customerDateOfBirth) ?? "-"}</span>
-                      </div>
-                    </div>
-                  </section>
-
-                  <section className="reservation-detail-section">
-                    <h4>Rezervaci vytvořil</h4>
-                    <div className="reservation-detail-grid">
-                      <div className="reservation-detail-item">
-                        <span className="reservation-detail-item__label">Jméno zaměstnance</span>
-                        <span>{selectedReservation.employeeName ?? "-"}</span>
-                      </div>
-                      <div className="reservation-detail-item">
-                        <span className="reservation-detail-item__label">Uživatelské jméno</span>
-                        <span>{selectedReservation.employeeUsername ?? "-"}</span>
-                      </div>
-                      <div className="reservation-detail-item">
-                        <span className="reservation-detail-item__label">Role zaměstnance</span>
-                        <span>{selectedReservation.employeeRole ?? "-"}</span>
-                      </div>
-                    </div>
-                  </section>
-                </div>
-
-                {reservationActionStatus.message ? (
-                  <p
-                    className={`status status--${
-                      reservationActionStatus.type === "idle" ? "neutral" : reservationActionStatus.type
-                    }`}
-                  >
-                    {reservationActionStatus.message}
-                  </p>
-                ) : null}
-
-                <div className="reservation-actions">
-                  <button className="btn btn--primary" type="button" onClick={submitReservationStatusUpdate}>
-                    Uložit stavy
-                  </button>
-                  <button
-                    className="btn btn--secondary"
-                    type="button"
-                    onClick={() => {
-                      setReservationEditMode(true);
-                      setReservationActionStatus({ type: "idle", message: "" });
-                    }}
-                  >
-                    Upravit
-                  </button>
-                  <button className="btn btn--danger" type="button" onClick={cancelReservation}>
-                    Zrušit rezervaci
-                  </button>
-                </div>
-              </>
-            )}
-          </section>
-        </div>
-      ) : null}
-
-      {/* Modal: vytvoreni nove rezervace ze slotu v kalendari */}
-      {createSlot ? (
-        <div className="reservation-modal-backdrop" onClick={closeCreateReservation}>
-          <section
-            className="reservation-modal"
-            onClick={(e) => e.stopPropagation()}
-            aria-label="Vytvoření rezervace"
-          >
-            <header className="reservation-modal__head">
-              <h3>Nová rezervace - pokoj {createSlot.room.number}</h3>
-              <button className="btn btn--secondary btn--compact" type="button" onClick={closeCreateReservation}>
-                Zavřít
-              </button>
-            </header>
-
-            {createStep === "form" ? (
-              <>
-                <div className="reservation-form-grid">
-                  <label>
-                    <span>Začátek rezervace</span>
-                    <input type="date" value={createSlot.startDateIso} disabled />
-                  </label>
-
-                <label>
-                  <span>Konec rezervace</span>
-                  <input
-                    type="date"
-                    value={createForm.checkOutDate}
-                    min={formatIsoDay(addDays(parseLocalDate(createSlot.startDateIso), 1))}
-                    onChange={(e) => updateCreateForm("checkOutDate", e.target.value)}
-                  />
-                </label>
-
-                <label>
-                  <span>Počet hostů</span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={createSlot.room.capacity ?? 10}
-                    value={createForm.numberOfGuests}
-                    onChange={(e) => updateCreateForm("numberOfGuests", e.target.value)}
-                  />
-                </label>
-
-                <label className="reservation-form-grid__full">
-                  <span>Speciální požadavky</span>
-                  <textarea
-                    rows={2}
-                    value={createForm.specialRequests}
-                    onChange={(e) => updateCreateForm("specialRequests", e.target.value)}
-                  />
-                </label>
-
-                <fieldset className="reservation-customer-box reservation-form-grid__full">
-                  <legend>Doplňkové služby</legend>
-                  {services.length === 0 ? (
-                    <div className="customer-search-hint">Nejsou k dispozici žádné vytvořené služby.</div>
-                  ) : (
-                    <div className="new-customer-grid">
-                      {services.map((service) => {
-                        const selectedItem = normalizeServiceSelections(createForm.serviceItems).find(
-                          (item) => item.serviceId === String(service.id)
-                        );
-                        return (
-                          <label key={`create-service-${service.id}`}>
-                            <span>
-                              <input
-                                type="checkbox"
-                                checked={!!selectedItem}
-                                onChange={(e) => toggleCreateService(service.id, e.target.checked)}
-                              />
-                              {" "}
-                              {service.name} ({formatMoney(service.price)})
-                            </span>
-                            <input
-                              type="number"
-                              min={1}
-                              value={selectedItem?.quantity ?? 1}
-                              disabled={!selectedItem}
-                              onChange={(e) => updateCreateServiceQuantity(service.id, e.target.value)}
-                            />
-                          </label>
-                        );
-                      })}
-                    </div>
-                  )}
-                </fieldset>
-
-                <fieldset className="reservation-customer-box reservation-form-grid__full">
-                  <legend>Zákazník</legend>
-                  <div className="customer-mode-row">
-                    <label>
-                      <input
-                        type="radio"
-                        name="customerMode"
-                        checked={createForm.customerMode === "existing"}
-                        onChange={() => updateCreateForm("customerMode", "existing")}
-                      />
-                      Existující zákazník
-                    </label>
-                    <label>
-                      <input
-                        type="radio"
-                        name="customerMode"
-                        checked={createForm.customerMode === "new"}
-                        onChange={() => updateCreateForm("customerMode", "new")}
-                      />
-                      Nový zákazník
-                    </label>
-                  </div>
-
-                  {createForm.customerMode === "existing" ? (
-                    <>
-                      <label>
-                        <span>Hledat zákazníka</span>
-                        <input
-                          type="text"
-                          value={customerSearch}
-                          onChange={(e) => setCustomerSearch(e.target.value)}
-                          placeholder="Jméno, e-mail nebo telefon"
-                        />
-                      </label>
-                      <label>
-                        <span>Vyber zákazníka ({filteredCustomers.length})</span>
-                        <select
-                          value={createForm.existingCustomerId}
-                          onChange={(e) => updateCreateForm("existingCustomerId", e.target.value)}
-                        >
-                          <option value="">-- Vyber --</option>
-                          {filteredCustomers.map((c) => (
-                            <option key={c.id} value={c.id}>
-                              {c.name} ({c.email ?? "-"} | {c.phone ?? "-"})
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      {customerSearch.trim() && filteredCustomers.length === 0 ? (
-                        <div className="customer-search-hint">Pro zadaný dotaz nebyl nalezen žádný zákazník.</div>
-                      ) : null}
-                    </>
-                  ) : (
-                    <div className="new-customer-grid">
-                      <label>
-                        <span>Jméno</span>
-                        <input
-                          value={createForm.newCustomerName}
-                          onChange={(e) => updateCreateForm("newCustomerName", e.target.value)}
-                        />
-                      </label>
-                      <label>
-                        <span>Datum narození</span>
-                        <input
-                          type="date"
-                          value={createForm.newCustomerDateOfBirth}
-                          onChange={(e) => updateCreateForm("newCustomerDateOfBirth", e.target.value)}
-                        />
-                      </label>
-                      <label>
-                        <span>E-mail</span>
-                        <input
-                          type="email"
-                          value={createForm.newCustomerEmail}
-                          onChange={(e) => updateCreateForm("newCustomerEmail", e.target.value)}
-                        />
-                      </label>
-                      <label>
-                        <span>Telefon</span>
-                        <input
-                          value={createForm.newCustomerPhone}
-                          onChange={(e) => updateCreateForm("newCustomerPhone", e.target.value)}
-                        />
-                      </label>
-                    </div>
-                  )}
-                </fieldset>
-
-                  <div className="reservation-form-grid__full reservation-actions">
-                    <button className="btn btn--secondary" type="button" onClick={closeCreateReservation}>
-                      Zrušit
-                    </button>
-                    <button
-                      className="btn btn--primary"
-                      type="button"
-                      onClick={() => {
-                        const validationError = validateCreateForm();
-                        if (validationError) {
-                          setCreateStatus({ type: "error", message: validationError });
-                          return;
-                        }
-                        setCreateStatus({ type: "idle", message: "" });
-                        setCreateStep("confirm");
-                      }}
-                    >
-                      Pokračovat na potvrzení
-                    </button>
-                  </div>
-                </div>
-                {createStatus.message ? (
-                  <p className={`status status--${createStatus.type === "idle" ? "neutral" : createStatus.type}`}>
-                    {createStatus.message}
-                  </p>
-                ) : null}
-              </>
-            ) : (
-              <div className="reservation-confirm">
-                <h4>Potvrzení rezervace</h4>
-                <div className="reservation-grid">
-                  <div><strong>Pokoj:</strong> {createSlot.room.number}</div>
-                  <div><strong>Typ pokoje:</strong> {createSlot.room.type ?? "-"}</div>
-                  <div><strong>Od:</strong> {formatDate(createSlot.startDateIso)}</div>
-                  <div><strong>Do:</strong> {formatDate(createForm.checkOutDate)}</div>
-                  <div><strong>Nocí:</strong> {createPreview?.nights ?? 0}</div>
-                  <div><strong>Cena za noc:</strong> {formatMoney(createPreview?.roomPrice)}</div>
-                  <div><strong>Pokoj celkem:</strong> {formatMoney(createPreview?.roomTotal)}</div>
-                  <div><strong>Služby celkem:</strong> {formatMoney(createPreview?.servicesTotal)}</div>
-                  <div><strong>Cena celkem:</strong> {formatMoney(createPreview?.total)}</div>
-                  <div><strong>Hostů:</strong> {createForm.numberOfGuests}</div>
-                  <div><strong>Zákazník:</strong> {createForm.customerMode === "existing"
-                    ? (customers.find((c) => String(c.id) === String(createForm.existingCustomerId))?.name ?? "-")
-                    : (createForm.newCustomerName || "-")}</div>
-                  <div><strong>E-mail:</strong> {createForm.customerMode === "existing"
-                    ? (customers.find((c) => String(c.id) === String(createForm.existingCustomerId))?.email ?? "-")
-                    : (createForm.newCustomerEmail || "-")}</div>
-                  <div><strong>Telefon:</strong> {createForm.customerMode === "existing"
-                    ? (customers.find((c) => String(c.id) === String(createForm.existingCustomerId))?.phone ?? "-")
-                    : (createForm.newCustomerPhone || "-")}</div>
-                  <div className="reservation-form-grid__full"><strong>Poznámka:</strong> {createForm.specialRequests || "-"}</div>
-                  <div className="reservation-form-grid__full">
-                    <strong>Služby:</strong>{" "}
-                    {normalizeServiceSelections(createForm.serviceItems).length > 0
-                      ? normalizeServiceSelections(createForm.serviceItems).map((item) => {
-                        const service = services.find((entry) => String(entry.id) === String(item.serviceId));
-                        return `${service?.name ?? `#${item.serviceId}`} ${item.quantity}x`;
-                      }).join(", ")
-                      : "-"}
-                  </div>
-                </div>
-
-                {createStatus.message ? (
-                  <p className={`status status--${createStatus.type === "idle" ? "neutral" : createStatus.type}`}>
-                    {createStatus.message}
-                  </p>
-                ) : null}
-
-                <div className="reservation-actions">
-                  <button className="btn btn--secondary" type="button" onClick={() => setCreateStep("form")}>
-                    Zpět
-                  </button>
-                  <button
-                    className="btn btn--primary"
-                    type="button"
-                    onClick={() => {
-                      const validationError = validateCreateForm();
-                      if (validationError) {
-                        setCreateStatus({ type: "error", message: validationError });
-                        return;
-                      }
-                      submitReservationCreate();
-                    }}
-                  >
-                    Potvrdit rezervaci
-                  </button>
-                </div>
-              </div>
-            )}
-          </section>
-        </div>
-      ) : null}
-
-      {serviceEditor ? (
-        <div className="reservation-modal-backdrop" onClick={closeServiceEditor}>
-          <section className="reservation-modal" onClick={(e) => e.stopPropagation()} aria-label="Správa služby">
-            <header className="reservation-modal__head">
-              <h3>{serviceEditor.mode === "create" ? "Přidat službu" : "Upravit službu"}</h3>
-              <button className="btn btn--secondary btn--compact" type="button" onClick={closeServiceEditor}>
-                Zavřít
-              </button>
-            </header>
-
-            <div className="reservation-form-grid">
-              <label>
-                <span>Název služby</span>
-                <input value={serviceForm.name} onChange={(e) => updateServiceForm("name", e.target.value)} />
-              </label>
-              <label>
-                <span>Cena</span>
-                <input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={serviceForm.price}
-                  onChange={(e) => updateServiceForm("price", e.target.value)}
-                />
-              </label>
-              <label className="reservation-form-grid__full">
-                <span>Popis</span>
-                <textarea
-                  rows={3}
-                  value={serviceForm.description}
-                  onChange={(e) => updateServiceForm("description", e.target.value)}
-                />
-              </label>
-            </div>
-
-            {serviceStatus.message ? (
-              <p className={`status status--${serviceStatus.type === "idle" ? "neutral" : serviceStatus.type}`}>
-                {serviceStatus.message}
-              </p>
-            ) : null}
-
-            <div className="reservation-actions">
-              <button className="btn btn--secondary" type="button" onClick={closeServiceEditor}>
-                Zrušit
-              </button>
-              <button className="btn btn--primary" type="button" onClick={submitServiceEditor}>
-                Uložit službu
-              </button>
-            </div>
-          </section>
-        </div>
-      ) : null}
-
-      {/* Modal: vytvoreni/editace pokoje */}
-      {roomEditor ? (
-        <div className="reservation-modal-backdrop" onClick={closeRoomEditor}>
-          <section className="reservation-modal" onClick={(e) => e.stopPropagation()} aria-label="Správa pokoje">
-            <header className="reservation-modal__head">
-              <h3>{roomEditor.mode === "create" ? "Vytvořit nový pokoj" : "Upravit pokoj"}</h3>
-              <button className="btn btn--secondary btn--compact" type="button" onClick={closeRoomEditor}>
-                Zavřít
-              </button>
-            </header>
-
-            <div className="reservation-form-grid">
-              <label>
-                <span>Číslo pokoje</span>
-                <input value={roomForm.number} onChange={(e) => updateRoomForm("number", e.target.value)} />
-              </label>
-              <label>
-                <span>Typ pokoje</span>
-                <input value={roomForm.type} onChange={(e) => updateRoomForm("type", e.target.value)} />
-              </label>
-              <label>
-                <span>Kapacita</span>
-                <input
-                  type="number"
-                  min={1}
-                  value={roomForm.capacity}
-                  onChange={(e) => updateRoomForm("capacity", e.target.value)}
-                />
-              </label>
-              <label>
-                <span>Cena za noc</span>
-                <input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={roomForm.pricePerNight}
-                  onChange={(e) => updateRoomForm("pricePerNight", e.target.value)}
-                />
-              </label>
-
-              {roomEditor.mode === "edit" ? (
-                <label className="room-active-toggle reservation-form-grid__full">
-                  <input
-                    type="checkbox"
-                    checked={roomForm.active}
-                    onChange={(e) => updateRoomForm("active", e.target.checked)}
-                  />
-                  <span>Pokoj je aktivní</span>
-                </label>
-              ) : null}
-            </div>
-
-            {roomStatus.message ? (
-              <p className={`status status--${roomStatus.type === "idle" ? "neutral" : roomStatus.type}`}>
-                {roomStatus.message}
-              </p>
-            ) : null}
-
-            <div className="reservation-actions">
-              <button className="btn btn--secondary" type="button" onClick={closeRoomEditor}>
-                Zrušit
-              </button>
-              <button className="btn btn--primary" type="button" onClick={submitRoomEditor}>
-                Uložit pokoj
-              </button>
-            </div>
-          </section>
-        </div>
-      ) : null}
-
-      {/* Modal: vytvoreni/editace zamestnance */}
-      {employeeEditor ? (
-        <div className="reservation-modal-backdrop" onClick={closeEmployeeEditor}>
-          <section className="reservation-modal" onClick={(e) => e.stopPropagation()} aria-label="Správa zaměstnance">
-            <header className="reservation-modal__head">
-              <h3>{employeeEditor.mode === "create" ? "Přidat zaměstnance" : "Upravit zaměstnance"}</h3>
-              <button className="btn btn--secondary btn--compact" type="button" onClick={closeEmployeeEditor}>
-                Zavřít
-              </button>
-            </header>
-
-            <div className="reservation-form-grid">
-              <label>
-                <span>Jméno</span>
-                <input value={employeeForm.name} onChange={(e) => updateEmployeeForm("name", e.target.value)} />
-              </label>
-              <label>
-                <span>Username</span>
-                <input
-                  value={employeeForm.username}
-                  onChange={(e) => updateEmployeeForm("username", e.target.value)}
-                />
-              </label>
-              <label>
-                <span>Kontakt</span>
-                <input value={employeeForm.contact} onChange={(e) => updateEmployeeForm("contact", e.target.value)} />
-              </label>
-              <label>
-                <span>Role</span>
-                <select value={employeeForm.role} onChange={(e) => updateEmployeeForm("role", e.target.value)}>
-                  {EMPLOYEE_ROLES.map((role) => (
-                    <option key={role} value={role}>
-                      {role}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {employeeEditor.mode === "create" ? (
-                <>
-                  <label>
-                    <span>Heslo</span>
-                    <input
-                      type="password"
-                      value={employeeForm.password}
-                      autoComplete="new-password"
-                      onChange={(e) => updateEmployeeForm("password", e.target.value)}
-                    />
-                  </label>
-                  <label>
-                    <span>Potvrzení hesla</span>
-                    <input
-                      type="password"
-                      value={employeeForm.passwordConfirm}
-                      autoComplete="new-password"
-                      onChange={(e) => updateEmployeeForm("passwordConfirm", e.target.value)}
-                    />
-                  </label>
-                </>
-              ) : null}
-            </div>
-
-            {employeeStatus.message ? (
-              <p className={`status status--${employeeStatus.type === "idle" ? "neutral" : employeeStatus.type}`}>
-                {employeeStatus.message}
-              </p>
-            ) : null}
-
-            <div className="reservation-actions">
-              {employeeEditor.mode === "edit" ? (
-                <button className="btn btn--secondary" type="button" onClick={openEmployeePasswordEditor}>
-                  Změnit heslo
-                </button>
-              ) : null}
-              <button className="btn btn--primary" type="button" onClick={submitEmployeeEditor}>
-                Uložit zaměstnance
-              </button>
-            </div>
-          </section>
-        </div>
-      ) : null}
-
-      {employeePasswordEditor ? (
-        <div className="reservation-modal-backdrop" onClick={closeEmployeePasswordEditor}>
-          <section className="reservation-modal" onClick={(e) => e.stopPropagation()} aria-label="Změna hesla zaměstnance">
-            <header className="reservation-modal__head">
-              <h3>Změnit heslo: {employeePasswordEditor.username || `#${employeePasswordEditor.employeeId}`}</h3>
-              <button className="btn btn--secondary btn--compact" type="button" onClick={closeEmployeePasswordEditor}>
-                Zavřít
-              </button>
-            </header>
-
-            <div className="reservation-form-grid">
-              <label>
-                <span>Nové heslo</span>
-                <input
-                  type="password"
-                  value={employeePasswordForm.password}
-                  autoComplete="new-password"
-                  onChange={(e) => updateEmployeePasswordForm("password", e.target.value)}
-                />
-              </label>
-              <label>
-                <span>Potvrzení nového hesla</span>
-                <input
-                  type="password"
-                  value={employeePasswordForm.passwordConfirm}
-                  autoComplete="new-password"
-                  onChange={(e) => updateEmployeePasswordForm("passwordConfirm", e.target.value)}
-                />
-              </label>
-            </div>
-
-            {employeePasswordStatus.message ? (
-              <p
-                className={`status status--${employeePasswordStatus.type === "idle" ? "neutral" : employeePasswordStatus.type}`}
-              >
-                {employeePasswordStatus.message}
-              </p>
-            ) : null}
-
-            <div className="reservation-actions">
-              <button className="btn btn--primary" type="button" onClick={submitEmployeePasswordChange}>
-                Uložit nové heslo
-              </button>
-            </div>
-          </section>
-        </div>
-      ) : null}
+      <EmployeePasswordEditorModal
+        employeePasswordEditor={employeePasswordEditor}
+        employeePasswordForm={employeePasswordForm}
+        employeePasswordStatus={employeePasswordStatus}
+        closeEmployeePasswordEditor={closeEmployeePasswordEditor}
+        updateEmployeePasswordForm={updateEmployeePasswordForm}
+        submitEmployeePasswordChange={submitEmployeePasswordChange}
+      />
     </main>
   );
 }

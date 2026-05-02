@@ -7,6 +7,8 @@ export default function RoomsSection({
   error,
   rooms,
   formatMoney,
+  getRoomTypeName,
+  formatRoomServices,
   openEditRoom,
 }) {
   return (
@@ -35,6 +37,7 @@ export default function RoomsSection({
                   <th>Typ</th>
                   <th>Kapacita</th>
                   <th>Cena / noc</th>
+                  <th>Vybavení</th>
                   <th aria-label="Úprava pokoje" />
                 </tr>
               </thead>
@@ -42,9 +45,10 @@ export default function RoomsSection({
                 {rooms.map((room) => (
                   <tr key={`manage-${room.id}`}>
                     <td>{room.number}</td>
-                    <td>{room.type}</td>
+                    <td>{getRoomTypeName(room) || "-"}</td>
                     <td>{room.capacity}</td>
                     <td>{formatMoney(room.pricePerNight)}</td>
+                    <td>{formatRoomServices(room)}</td>
                     <td>
                       <button
                         className="btn btn--secondary btn--compact"

@@ -11,6 +11,9 @@ export default function OccupancySection({
   setOccupancyCapacityMode,
   occupancyCapacityValue,
   setOccupancyCapacityValue,
+  occupancyAmenityIds,
+  setOccupancyAmenityIds,
+  roomAmenities,
   filteredOccupancyRooms,
   rooms,
   goPrevWeek,
@@ -31,6 +34,20 @@ export default function OccupancySection({
   openCreateReservation,
   openReservationDetail,
 }) {
+  function toggleAmenity(serviceId, enabled) {
+    const normalizedId = String(serviceId);
+    const current = Array.isArray(occupancyAmenityIds) ? occupancyAmenityIds.map(String) : [];
+    const exists = current.includes(normalizedId);
+
+    if (enabled && !exists) {
+      setOccupancyAmenityIds([...current, normalizedId]);
+      return;
+    }
+    if (!enabled && exists) {
+      setOccupancyAmenityIds(current.filter((id) => id !== normalizedId));
+    }
+  }
+
   return (
     <section className="panel panel--wide">
       <div className="occupancy-head">
@@ -94,6 +111,33 @@ export default function OccupancySection({
                       />
                     </label>
                   ) : null}
+                  <fieldset className="reservation-customer-box">
+                    <legend>Vybavení pokoje</legend>
+                    {roomAmenities.length === 0 ? (
+                      <div className="customer-search-hint">Nejsou dostupné žádné room services.</div>
+                    ) : (
+                      <div className="new-customer-grid">
+                        {roomAmenities.map((service) => {
+                          const checked = (Array.isArray(occupancyAmenityIds) ? occupancyAmenityIds : [])
+                            .map(String)
+                            .includes(String(service.id));
+                          return (
+                            <label key={`occupancy-amenity-${service.id}`}>
+                              <span>
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={(e) => toggleAmenity(service.id, e.target.checked)}
+                                />
+                                {" "}
+                                {service.name}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </fieldset>
                   <p className="occupancy-settings__hint">
                     Zobrazeno {filteredOccupancyRooms.length} z {rooms.length} pokojů.
                   </p>
@@ -131,6 +175,14 @@ export default function OccupancySection({
         <p className="occupancy-note">
           Filtr pokojů: {occupancyCapacityMode === "exact" ? "kapacita přesně" : "kapacita minimálně"}{" "}
           {Number(occupancyCapacityValue) > 0 ? occupancyCapacityValue : "-"}.
+        </p>
+      ) : null}
+      {occupancyAmenityIds.length > 0 ? (
+        <p className="occupancy-note">
+          Filtr vybavení: {roomAmenities
+            .filter((service) => occupancyAmenityIds.map(String).includes(String(service.id)))
+            .map((service) => service.name)
+            .join(", ")}.
         </p>
       ) : null}
 

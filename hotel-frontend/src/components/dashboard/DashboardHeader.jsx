@@ -42,6 +42,13 @@ export default function DashboardHeader({ viewTitle, activeView, setActiveView }
             Správa služeb
           </button>
           <button
+            className={`dashboard-nav__item ${activeView === "customers" ? "is-active" : ""}`}
+            type="button"
+            onClick={() => setActiveView("customers")}
+          >
+            Správa zákazníků
+          </button>
+          <button
             className={`dashboard-nav__item ${activeView === "employees" ? "is-active" : ""}`}
             type="button"
             onClick={() => setActiveView("employees")}

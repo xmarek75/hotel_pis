@@ -3,8 +3,14 @@ import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { Waves } from "../components/ui/wave-background";
 
+const API_BASE = import.meta.env.DEV ? "/api" : "/hotel/api";
+
+function apiUrl(path) {
+  return `${API_BASE}${path}`;
+}
+
 async function testLogin({ username, password }) {
-  const res = await fetch("/api/auth/login", {
+  const res = await fetch(apiUrl("/auth/login"), {
     method: "POST",
     headers: {
       Accept: "application/json",
