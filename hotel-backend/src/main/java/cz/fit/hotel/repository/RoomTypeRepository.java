@@ -43,4 +43,11 @@ public class RoomTypeRepository {
 
         return result.isEmpty() ? null : result.get(0);
     }
+
+    public boolean isTypeUsed(Long typeId) {
+        Long count = em.createQuery("select count(r) from Room r where r.type.id = :id", Long.class)
+                .setParameter("id", typeId)
+                .getSingleResult();
+        return count > 0;
+    }
 }

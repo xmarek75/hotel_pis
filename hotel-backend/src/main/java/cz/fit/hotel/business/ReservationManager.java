@@ -187,7 +187,7 @@ public class ReservationManager {
                     continue;
                 }
 
-                ExtraService requestedService = requestedItem.getExtraService();
+                ExtraService requestedService = requestedItem.getService();
                 Long serviceId = requestedService != null ? requestedService.getId() : null;
                 if (serviceId == null) {
                     throw new IllegalArgumentException("Each service item must reference a service ID");
@@ -202,7 +202,7 @@ public class ReservationManager {
                 BigDecimal priceAtTime = service.getPrice() == null ? BigDecimal.ZERO : service.getPrice();
                 
                 ReservationExtraService normalizedItem = new ReservationExtraService();
-                normalizedItem.setExtraService(service);
+                normalizedItem.setService(service);
                 normalizedItem.setQuantity(quantity);
                 normalizedItem.setPriceAtTime(priceAtTime);
                 normalizedItem.setReservation(reservation);

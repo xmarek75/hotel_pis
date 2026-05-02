@@ -62,11 +62,11 @@ public class ReservationExtraService {
         return priceAtTime.multiply(new BigDecimal(quantity));
     }
 
-    public ExtraService getExtraService() {
+    public ExtraService getService() {
         return service;
     }
 
-    public void setExtraService(ExtraService service) {
+    public void setService(ExtraService service) {
         this.service = service;
     }
 

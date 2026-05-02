@@ -65,6 +65,7 @@ public class Reservation {
     private Employee employee;
 
     @OneToMany(mappedBy = "reservation", cascade = CascadeType.ALL, orphanRemoval = true)
+    @jakarta.json.bind.annotation.JsonbProperty("serviceItems")
     private Set<ReservationExtraService> extraServices = new HashSet<>();
 
     @JsonbTransient
@@ -170,6 +171,7 @@ public class Reservation {
         this.employee = employee;
     }
 
+    @jakarta.json.bind.annotation.JsonbProperty("serviceItems")
     public Set<ReservationExtraService> getExtraServices() {
         return extraServices;
     }
