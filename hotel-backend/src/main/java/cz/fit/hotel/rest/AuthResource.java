@@ -15,9 +15,13 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.NotAuthorizedException;
 import jakarta.ws.rs.core.MediaType;
 
+import org.eclipse.microprofile.openapi.annotations.Operation;
+import org.eclipse.microprofile.openapi.annotations.tags.Tag;
+
 @Path("/auth")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
+@Tag(name = "Authentication", description = "Endpoints for user login and JWT token acquisition")
 public class AuthResource {
 
     @Inject
@@ -32,6 +36,7 @@ public class AuthResource {
     @POST
     @Path("/login")
     @PermitAll
+    @Operation(summary = "Login", description = "Authenticates a user and returns a JWT token for further requests.")
     public LoginResponse login(LoginRequest request) {
         if (request == null || request.username == null || request.password == null
                 || request.username.isBlank() || request.password.isBlank()) {
