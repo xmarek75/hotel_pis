@@ -8,18 +8,23 @@ import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 
+import org.eclipse.microprofile.openapi.annotations.Operation;
+import org.eclipse.microprofile.openapi.annotations.tags.Tag;
+
 import java.util.List;
 
 @Path("/employees")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
 @RolesAllowed({"administrator"})
+@Tag(name = "Employees", description = "User management for hotel staff (Admin only)")
 public class EmployeeResource {
 
     @Inject
     EmployeeManager employeeManager;
 
     @GET
+    @Operation(summary = "List all employees", description = "Returns a list of all staff members. Only accessible by administrators.")
     public List<Employee> all() {
         return employeeManager.findAll();
     }
@@ -31,6 +36,7 @@ public class EmployeeResource {
     }
 
     @POST
+    @Operation(summary = "Register new employee", description = "Creates a new staff account with hashed password and assigned role.")
     public Employee create(EmployeeUpsertRequest request) {
         Employee employee = toEmployee(request, false);
         return employeeManager.create(employee);
@@ -38,6 +44,7 @@ public class EmployeeResource {
 
     @PUT
     @Path("/{id}")
+    @Operation(summary = "Update employee", description = "Updates staff details. Password is only updated if provided in the request.")
     public Employee update(@PathParam("id") Long id, EmployeeUpsertRequest request) {
         Employee employee = toEmployee(request, true);
         return employeeManager.update(id, employee);
@@ -45,6 +52,7 @@ public class EmployeeResource {
 
     @DELETE
     @Path("/{id}")
+    @Operation(summary = "Deactivate employee", description = "Soft-deletes an employee by setting their status to inactive.")
     public void deactivate(@PathParam("id") Long id) {
         employeeManager.delete(id);
     }
