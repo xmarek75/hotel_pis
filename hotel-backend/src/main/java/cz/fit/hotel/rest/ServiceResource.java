@@ -1,69 +1,57 @@
 package cz.fit.hotel.rest;
 
-import cz.fit.hotel.business.ServiceManager;
-import cz.fit.hotel.model.Service;
+import cz.fit.hotel.business.ExtraServiceManager;
+import cz.fit.hotel.model.ExtraService;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
-import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
+
+import org.eclipse.microprofile.openapi.annotations.Operation;
+import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import java.util.List;
 
 @Path("/services")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
+@RolesAllowed({"administrator", "RECEPTIONIST", "MANAGER"})
+@Tag(name = "Extra Services", description = "Management of additional hotel services (Breakfast, Parking, etc.)")
 public class ServiceResource {
 
     @Inject
-    ServiceManager serviceManager;
+    ExtraServiceManager serviceManager;
 
     @GET
-    @RolesAllowed({"administrator", "RECEPTIONIST", "MANAGER"})
-    public List<Service> all() {
+    @Operation(summary = "List all services", description = "Retrieves the full catalog of available extra services.")
+    public List<ExtraService> all() {
         return serviceManager.findAll();
     }
 
     @GET
     @Path("/{id}")
-    @RolesAllowed({"administrator", "RECEPTIONIST", "MANAGER"})
-    public Service one(@PathParam("id") Long id) {
+    @Operation(summary = "Get service by ID", description = "Retrieves details of a specific extra service.")
+    public ExtraService one(@PathParam("id") Long id) {
         return serviceManager.findById(id);
     }
 
     @POST
-    @RolesAllowed({"administrator", "MANAGER"})
-    public Service create(Service service) {
-        try {
-            return serviceManager.create(service);
-        } catch (IllegalArgumentException ex) {
-            throw badRequest(ex);
-        }
+    @Operation(summary = "Add new service", description = "Creates a new service in the catalog.")
+    public ExtraService create(ExtraService service) {
+        return serviceManager.create(service);
     }
 
     @PUT
     @Path("/{id}")
-    @RolesAllowed({"administrator", "MANAGER"})
-    public Service update(@PathParam("id") Long id, Service service) {
-        try {
-            return serviceManager.update(id, service);
-        } catch (IllegalArgumentException ex) {
-            throw badRequest(ex);
-        }
+    @Operation(summary = "Update service", description = "Modifies an existing service's name, price, or description.")
+    public ExtraService update(@PathParam("id") Long id, ExtraService service) {
+        return serviceManager.update(id, service);
     }
 
     @DELETE
     @Path("/{id}")
-    @RolesAllowed({"administrator", "MANAGER"})
+    @Operation(summary = "Remove service", description = "Deletes a service from the catalog.")
     public void delete(@PathParam("id") Long id) {
-        try {
-            serviceManager.delete(id);
-        } catch (IllegalArgumentException ex) {
-            throw badRequest(ex);
-        }
-    }
-
-    private BadRequestException badRequest(IllegalArgumentException ex) {
-        return new BadRequestException(ex.getMessage());
+        serviceManager.delete(id);
     }
 }

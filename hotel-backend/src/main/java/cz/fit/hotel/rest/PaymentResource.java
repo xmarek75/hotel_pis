@@ -2,7 +2,8 @@ package cz.fit.hotel.rest;
 
 import cz.fit.hotel.business.PaymentManager;
 import cz.fit.hotel.model.Payment;
-import cz.fit.hotel.model.PaymentStatus;
+import cz.fit.hotel.model.PaymentMethod;
+import cz.fit.hotel.model.Employee;
 import cz.fit.hotel.model.Reservation;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
@@ -56,27 +57,33 @@ public class PaymentResource {
 
         Payment payment = new Payment();
 
-        // Payment manager potrebuje odkaz na rezervaci; pro request staci lehky objekt jen s ID.
         Reservation reservation = new Reservation();
-        reservation.setId(request.reservationId);
+        reservation.setId(request.reservationId); 
 
         payment.setReservation(reservation);
         payment.setAmount(request.amount);
-        payment.setPaymentDate(request.paymentDate);
-        if (request.status != null && !request.status.isBlank()) {
+        
+        if (request.method != null && !request.method.isBlank()) {
             try {
-                payment.setStatus(PaymentStatus.valueOf(request.status.trim()));
+                payment.setMethod(PaymentMethod.valueOf(request.method.trim().toUpperCase()));
             } catch (IllegalArgumentException ex) {
-                throw new BadRequestException("Invalid payment status");
+                throw new BadRequestException("Invalid payment method");
             }
         }
+        
+        if (request.employeeId != null) {
+            Employee employee = new Employee();
+            employee.setId(request.employeeId);
+            payment.setEmployee(employee);
+        }
+
         return payment;
     }
 
     public static class PaymentCreateRequest {
         public Long reservationId;
         public BigDecimal amount;
-        public String status;
-        public LocalDateTime paymentDate;
+        public String method;
+        public Long employeeId;
     }
 }

@@ -48,11 +48,11 @@ public class PaymentRepository {
 
     public java.math.BigDecimal getTotalPaidForReservation(Long reservationId) {
         java.math.BigDecimal result = em.createQuery(
-                        "select coalesce(sum(p.amount), 0.0) from Payment p where p.reservation.id = :reservationId",
+                        "select sum(p.amount) from Payment p where p.reservation.id = :reservationId",
                         java.math.BigDecimal.class)
                 .setParameter("reservationId", reservationId)
                 .getSingleResult();
 
-        return result;
+        return result != null ? result : java.math.BigDecimal.ZERO;
     }
 }

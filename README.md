@@ -52,11 +52,26 @@ Backend poběží na:
 API (příklad):
 - `http://localhost:9080/hotel/api/rooms`
 
-### Přihlášení do API (Basic Auth)
-- admin: `admin` / `admin123`
-- recepce: `reception` / `reception123`
+### 4. Swagger UI (OpenAPI)
+Dokumentace API a interaktivní testování:
+- URL: `http://localhost:9080/openapi/ui/`
 
-## 4. Spuštění frontendu
+#### Jak testovat v Swaggeru (Autorizace):
+1. Najdi endpoint `POST /auth/login`.
+2. Klikni na **Try it out** a zadej přihlašovací údaje (admin/admin123).
+3. Po spuštění (Execute) si zkopíruj `token` z JSON odpovědi.
+4. Klikni na zelené tlačítko **Authorize** nahoře na stránce.
+5. Vlož zkopírovaný token a potvrď.
+6. Nyní můžeš volat ostatní endpointy přímo z prohlížeče.
+
+### 5. Autentizace a role
+Aplikace používá **JWT Bearer** tokeny pro veškerou komunikaci kromě login endpointu.
+
+**Uživatelé v systému:**
+- **admin**: `admin` / `admin123` (role: `administrator`)
+- **recepce**: `reception` / `reception123` (role: `RECEPTIONIST`)
+
+## 7. Spuštění frontendu
 
 V novém terminálu:
 
@@ -71,14 +86,14 @@ Frontend běží typicky na:
 
 Vite proxy přeposílá `/api/*` na backend `http://localhost:9080/hotel/api/*`.
 
-## 5. Seed demo dat
+## 8. Seed demo dat
 
 Backend při startu vkládá demo data (pokoje, zákazníky, rezervace), pokud chybí.
 
 Poznámka:
 - V `persistence.xml` je `drop-and-create`, takže při novém startu backendu se schéma resetuje.
 
-## 6. Zastavení
+## 9. Zastavení
 
 Zastavení backendu:
 - v terminálu s `mvn liberty:dev` stiskni `q` nebo `Ctrl+C`
@@ -95,7 +110,7 @@ Smazání DB volume (čistý start databáze):
 docker compose down -v
 ```
 
-## 7. Nejčastější problémy
+## 10. Nejčastější problémy
 
 ### Chyba připojení k DB / authentication failed
 - ověř, že běží Docker kontejnery: `docker compose ps`

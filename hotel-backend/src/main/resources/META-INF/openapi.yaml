@@ -1,0 +1,12 @@
+openapi: 3.1.0
+info:
+  title: Hotel PIS API
+  version: 1.0.0
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+security:
+  - bearerAuth: []

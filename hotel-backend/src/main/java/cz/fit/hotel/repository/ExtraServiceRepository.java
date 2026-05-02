@@ -42,4 +42,11 @@ public class ExtraServiceRepository {
         ExtraService managed = em.merge(service);
         em.remove(managed);
     }
+
+    public boolean isServiceUsed(Long serviceId) {
+        Long count = em.createQuery("select count(res) from ReservationExtraService res where res.service.id = :id", Long.class)
+                .setParameter("id", serviceId)
+                .getSingleResult();
+        return count > 0;
+    }
 }

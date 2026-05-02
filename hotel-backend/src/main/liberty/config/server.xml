@@ -9,6 +9,7 @@
     <feature>jdbc-4.2</feature>
     <feature>persistence-3.1</feature>
     <feature>appSecurity-5.0</feature>
+    <feature>mpOpenAPI-3.1</feature>
   </featureManager>
 
   <httpEndpoint id="defaultHttpEndpoint" host="*" httpPort="9080" httpsPort="9443"/>

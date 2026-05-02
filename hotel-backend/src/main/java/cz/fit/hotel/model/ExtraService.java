@@ -71,11 +71,11 @@ public class ExtraService {
 
     public void addReservationExtra(ReservationExtraService extra) {
         extraServices.add(extra);
-        extra.setExtraService(this);
+        extra.setService(this);
     }
 
     public void removeReservationExtra(ReservationExtraService extra) {
         extraServices.remove(extra);
-        extra.setExtraService(null);
+        extra.setService(null);
     }
 }

@@ -37,12 +37,6 @@ public class CustomerRepository {
         em.remove(managed);
     }
 
-    public List<Reservation> findReservationsByCustomerId(Long customerId) {
-        return em.createQuery("select r from Reservation r where r.customer.id = :customerId order by r.checkInDate desc", Reservation.class)
-                .setParameter("customerId", customerId)
-                .getResultList();
-    }
-
     public long countReservations(Long customerId) {
         return em.createQuery("select count(r) from Reservation r where r.customer.id = :customerId", Long.class)
                 .setParameter("customerId", customerId)
@@ -58,12 +52,4 @@ public class CustomerRepository {
         return result.isEmpty() ? null : result.get(0);
     }
 
-    public boolean hasActiveReservations(Long customerId) {
-        Long count = em.createQuery("select count(r) from Reservation r where r.customer.id = :id and r.status <> :status", Long.class)
-                .setParameter("id", customerId)
-                .setParameter("status", ReservationStatus.CANCELED)
-                .getSingleResult();
-
-        return count > 0;
-    }
 }

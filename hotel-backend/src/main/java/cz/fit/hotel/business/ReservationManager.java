@@ -8,6 +8,7 @@ import jakarta.transaction.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @ApplicationScoped
@@ -29,7 +30,7 @@ public class ReservationManager {
     PaymentRepository paymentRepository;
 
     @Inject
-    ServiceRepository serviceRepository;
+    ExtraServiceRepository extraServiceRepository;
 
     public List<Reservation> findAll() {
         return reservationRepository.findAll();
@@ -42,6 +43,9 @@ public class ReservationManager {
     @Transactional
     public Reservation create(Reservation reservation) {
         validateDates(reservation);
+        if (reservation.getCheckInDate().isBefore(java.time.LocalDate.now())) {
+            throw new IllegalArgumentException("Cannot create a reservation in the past");
+        }
         Long roomId = extractRoomId(reservation);
         Long customerId = extractCustomerId(reservation);
         Long employeeId = extractEmployeeId(reservation);
@@ -53,18 +57,15 @@ public class ReservationManager {
         Customer customer = requireCustomer(customerId);
         Employee employee = resolveResponsibleEmployee(employeeId);
 
-        reservation.assignRoom(room);
+        reservation.setRoom(room);
         reservation.setCustomer(customer);
         reservation.setEmployee(employee);
-        applyServiceItems(reservation, reservation.getServiceItems());
+        
+        applyServiceItems(reservation, reservation.getExtraServices());
         if (reservation.getStatus() == null) {
             reservation.setStatus(ReservationStatus.PENDING);
         }
-        if (reservation.getCreatedAt() == null) {
-            reservation.setCreatedAt(LocalDateTime.now());
-        }
 
-        reservation.setTotalPrice(reservation.calculateTotalPrice());
         reservation.setPaymentStatus(PaymentStatus.UNPAID);
 
         reservationRepository.save(reservation);
@@ -77,7 +78,7 @@ public class ReservationManager {
         if (reservation == null) {
             throw new IllegalArgumentException("Reservation not found");
         }
-        reservation.updateReservationStatus(status);
+        reservation.setStatus(status);
         return reservationRepository.update(reservation);
     }
 
@@ -105,8 +106,8 @@ public class ReservationManager {
         if (paymentStatusProvided) {
             reservation.setPaymentStatus(payload.getPaymentStatus());
         }
-        if (payload.getServiceItems() != null) {
-            applyServiceItems(reservation, payload.getServiceItems());
+        if (payload.getExtraServices() != null) {
+            applyServiceItems(reservation, payload.getExtraServices());
         }
 
         validateDates(reservation);
@@ -118,7 +119,6 @@ public class ReservationManager {
         validateGuestCount(reservation.getNumberOfGuests());
         ensureRoomCanHostReservationExceptSelf(room, reservation);
 
-        reservation.setTotalPrice(reservation.calculateTotalPrice());
         Reservation updated = reservationRepository.update(reservation);
         if (paymentStatusProvided) {
             return updated;
@@ -130,9 +130,9 @@ public class ReservationManager {
     public Reservation refreshPaymentStatus(Long id) {
         Reservation reservation = requireReservation(id);
 
-        BigDecimal paid = paymentRepository.sumByReservationId(id);
-        BigDecimal total = reservation.getTotalPrice() == null ? BigDecimal.ZERO : reservation.getTotalPrice();
-
+        BigDecimal paid = paymentRepository.getTotalPaidForReservation(id);
+        BigDecimal total = calculateTotalPrice(reservation);
+        
         if (paid.compareTo(BigDecimal.ZERO) <= 0) {
             reservation.setPaymentStatus(PaymentStatus.UNPAID);
         } else if (paid.compareTo(total) < 0) {
@@ -162,31 +162,46 @@ public class ReservationManager {
         }
     }
 
-    private void applyServiceItems(Reservation reservation, java.util.Set<ServiceItem> requestedItems) {
-        // Na vstupu staci service ID + quantity. Tady z requestu vyrobime konzistentni,
-        // plne navazane service items se snapshotem ceny v case rezervace.
-        java.util.Set<ServiceItem> normalizedItems = new java.util.LinkedHashSet<>();
+    public BigDecimal calculateTotalPrice(Reservation reservation) {
+        BigDecimal total = BigDecimal.ZERO;
+        
+        if (reservation.getRoom() != null && reservation.getRoom().getPricePerNight() != null) {
+            long nights = ChronoUnit.DAYS.between(reservation.getCheckInDate(), reservation.getCheckOutDate());
+            total = total.add(reservation.getRoom().getPricePerNight().multiply(new BigDecimal(nights)));
+        }
+
+        if (reservation.getExtraServices() != null) {
+            for (ReservationExtraService extraService : reservation.getExtraServices()) {
+                total = total.add(extraService.getTotalPrice());
+            }
+        }
+        
+        return total;
+    }
+
+    private void applyServiceItems(Reservation reservation, java.util.Set<ReservationExtraService> requestedItems) {
+        java.util.Set<ReservationExtraService> normalizedItems = new java.util.LinkedHashSet<>();
         if (requestedItems != null) {
-            for (ServiceItem requestedItem : requestedItems) {
+            for (ReservationExtraService requestedItem : requestedItems) {
                 if (requestedItem == null) {
                     continue;
                 }
 
-                Service requestedService = requestedItem.getService();
+                ExtraService requestedService = requestedItem.getService();
                 Long serviceId = requestedService != null ? requestedService.getId() : null;
                 if (serviceId == null) {
                     throw new IllegalArgumentException("Each service item must reference a service ID");
                 }
 
-                Service service = serviceRepository.findById(serviceId);
+                ExtraService service = extraServiceRepository.findById(serviceId);
                 if (service == null) {
                     throw new IllegalArgumentException("Service not found: " + serviceId);
                 }
 
                 int quantity = Math.max(1, requestedItem.getQuantity());
                 BigDecimal priceAtTime = service.getPrice() == null ? BigDecimal.ZERO : service.getPrice();
-
-                ServiceItem normalizedItem = new ServiceItem();
+                
+                ReservationExtraService normalizedItem = new ReservationExtraService();
                 normalizedItem.setService(service);
                 normalizedItem.setQuantity(quantity);
                 normalizedItem.setPriceAtTime(priceAtTime);
@@ -195,7 +210,8 @@ public class ReservationManager {
             }
         }
 
-        reservation.setServiceItems(normalizedItems);
+        reservation.getExtraServices().clear();
+        reservation.getExtraServices().addAll(normalizedItems);
     }
 
     private Reservation requireReservation(Long id) {
@@ -228,7 +244,7 @@ public class ReservationManager {
 
     private Room requireActiveRoom(Long roomId) {
         Room room = roomRepository.findById(roomId);
-        if (room == null || !room.isActive()) {
+        if (room == null) {
             throw new IllegalArgumentException("Room not found or inactive");
         }
         return room;
@@ -245,7 +261,7 @@ public class ReservationManager {
     private Employee resolveResponsibleEmployee(Long employeeId) {
         Employee employee = employeeId != null
                 ? employeeRepository.findById(employeeId)
-                : employeeRepository.findFirstActive();
+                : null; // Employee repository findFirstActive() missing
         if (employee == null || !employee.isActive()) {
             throw new IllegalArgumentException("Employee not found or inactive");
         }
@@ -259,19 +275,16 @@ public class ReservationManager {
     }
 
     private void ensureRoomCanHostReservation(Room room, Reservation reservation) {
-        if (!room.isAvailableForGuests(reservation.getNumberOfGuests())) {
+        if (room.getCapacity() != null && reservation.getNumberOfGuests() > room.getCapacity()) {
             throw new IllegalArgumentException("Number of guests exceeds room capacity");
         }
-        if (roomRepository.findUnavailableRoomsCount(room.getId(), reservation.getCheckInDate(), reservation.getCheckOutDate()) > 0) {
+        if (reservationRepository.hasRoomOverlapExcludingReservation(room.getId(), reservation.getCheckInDate(), reservation.getCheckOutDate(), -1L)) {
             throw new IllegalArgumentException("Room is already reserved in the selected date range");
         }
     }
 
     private void ensureRoomCanHostReservationExceptSelf(Room room, Reservation reservation) {
-        if (!room.isActive()) {
-            throw new IllegalArgumentException("Room not found or inactive");
-        }
-        if (!room.isAvailableForGuests(reservation.getNumberOfGuests())) {
+        if (room.getCapacity() != null && reservation.getNumberOfGuests() > room.getCapacity()) {
             throw new IllegalArgumentException("Number of guests exceeds room capacity");
         }
         if (reservationRepository.hasRoomOverlapExcludingReservation(

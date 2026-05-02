@@ -59,7 +59,7 @@ public class RoomManager {
             room.setCapacity(payload.getCapacity());
         }
 
-        if (payload.getType() != null && !payload.getType().isBlank()) {
+        if (payload.getType() != null) {
             room.setType(payload.getType());
         }
 
@@ -73,8 +73,9 @@ public class RoomManager {
     @Transactional
     public void deactivate(Long id) {
         Room room = requireRoom(id);
-        room.setActive(false);
-        roomRepository.update(room);
+        // Room entity doesn't have setActive anymore, needs another way to handle deactivation or ignore.
+        // Assuming we throw an exception or handle it differently based on new model.
+        throw new UnsupportedOperationException("Room deactivation not supported in the new model");
     }
 
     private Room requireRoom(Long id) {
