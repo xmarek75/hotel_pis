@@ -42,4 +42,11 @@ public class RoomServiceRepository {
         RoomService managed = em.merge(service);
         em.remove(managed);
     }
+
+    public boolean isServiceUsed(Long serviceId) {
+        Long count = em.createQuery("select count(r) from Room r join r.services s where s.id = :id", Long.class)
+                .setParameter("id", serviceId)
+                .getSingleResult();
+        return count > 0;
+    }
 }
