@@ -1,7 +1,6 @@
 package cz.fit.hotel.business;
 
 import cz.fit.hotel.model.Payment;
-import cz.fit.hotel.model.PaymentStatus;
 import cz.fit.hotel.model.Reservation;
 import cz.fit.hotel.model.Employee;
 import cz.fit.hotel.repository.PaymentRepository;
@@ -12,7 +11,6 @@ import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.List;
 
 @ApplicationScoped
