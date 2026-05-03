@@ -15,6 +15,9 @@ import java.util.List;
 public class ReservationManager {
 
     @Inject
+    ReservationChangeLogManager logManager;
+
+    @Inject
     ReservationRepository reservationRepository;
 
     @Inject
@@ -73,40 +76,52 @@ public class ReservationManager {
     }
 
     @Transactional
-    public Reservation updateStatus(Long id, ReservationStatus status) {
+    public Reservation updateStatus(Long id, ReservationStatus status, Employee actor) {
         Reservation reservation = reservationRepository.findById(id);
         if (reservation == null) {
             throw new IllegalArgumentException("Reservation not found");
         }
+        
+        ReservationStatus oldStatus = reservation.getStatus();
         reservation.setStatus(status);
+        
+        logManager.logChange(reservation, actor, "status", oldStatus, status);
+        
         return reservationRepository.update(reservation);
     }
 
     @Transactional
-    public Reservation update(Long id, Reservation payload) {
+    public Reservation update(Long id, Reservation payload, Employee actor) {
         Reservation reservation = requireReservation(id);
 
         boolean paymentStatusProvided = payload.getPaymentStatus() != null;
 
         if (payload.getCheckInDate() != null) {
+            logManager.logChange(reservation, actor, "checkInDate", reservation.getCheckInDate(), payload.getCheckInDate());
             reservation.setCheckInDate(payload.getCheckInDate());
         }
         if (payload.getCheckOutDate() != null) {
+            logManager.logChange(reservation, actor, "checkOutDate", reservation.getCheckOutDate(), payload.getCheckOutDate());
             reservation.setCheckOutDate(payload.getCheckOutDate());
         }
         if (payload.getNumberOfGuests() != null) {
+            logManager.logChange(reservation, actor, "numberOfGuests", reservation.getNumberOfGuests(), payload.getNumberOfGuests());
             reservation.setNumberOfGuests(payload.getNumberOfGuests());
         }
         if (payload.getSpecialRequests() != null) {
+            logManager.logChange(reservation, actor, "specialRequests", reservation.getSpecialRequests(), payload.getSpecialRequests());
             reservation.setSpecialRequests(payload.getSpecialRequests());
         }
         if (payload.getStatus() != null) {
+            logManager.logChange(reservation, actor, "status", reservation.getStatus(), payload.getStatus());
             reservation.setStatus(payload.getStatus());
         }
         if (paymentStatusProvided) {
+            logManager.logChange(reservation, actor, "paymentStatus", reservation.getPaymentStatus(), payload.getPaymentStatus());
             reservation.setPaymentStatus(payload.getPaymentStatus());
         }
         if (payload.getExtraServices() != null) {
+            logManager.logChange(reservation, actor, "extraServices", "Updated", "Updated");
             applyServiceItems(reservation, payload.getExtraServices());
         }
 

@@ -4,43 +4,41 @@ import cz.fit.hotel.model.ReservationChangeLog;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-
 import java.util.List;
 
+/**
+ * Repository for managing ReservationChangeLog entities.
+ */
 @ApplicationScoped
 public class ReservationChangeLogRepository {
 
     @PersistenceContext(unitName = "hotelPU")
     private EntityManager em;
 
-    public ReservationChangeLog findById(Long id) {
-        return em.find(ReservationChangeLog.class, id);
-    }
-
+    /**
+     * Persists a new change log entry.
+     */
     public void save(ReservationChangeLog log) {
         em.persist(log);
     }
 
-    public ReservationChangeLog update(ReservationChangeLog log) {
-        return em.merge(log);
-    }
-
-    public void delete(ReservationChangeLog log) {
-        ReservationChangeLog managed = em.merge(log);
-        em.remove(managed);
-    }
-
-    public List<ReservationChangeLog> findByReservationId(Long reservationId) {
-        return em.createQuery("select l from ReservationChangeLog l where l.reservation.id = :reservationId order by l.changedAt desc",
-                        ReservationChangeLog.class)
-                .setParameter("reservationId", reservationId)
+    /**
+     * Retrieves all change logs, ordered by date descending.
+     */
+    public List<ReservationChangeLog> findAll() {
+        return em.createQuery("SELECT rcl FROM ReservationChangeLog rcl ORDER BY rcl.changeDate DESC", ReservationChangeLog.class)
                 .getResultList();
     }
 
-    public List<ReservationChangeLog> findByEmployeeId(Long employeeId) {
-        return em.createQuery("select l from ReservationChangeLog l where l.employee.id = :employeeId order by l.changedAt desc",
-                        ReservationChangeLog.class)
-                .setParameter("employeeId", employeeId)
+    /**
+     * Retrieves all change logs for a specific reservation, ordered by date descending.
+     */
+    public List<ReservationChangeLog> findByReservationId(Long reservationId) {
+        return em.createQuery(
+                "SELECT rcl FROM ReservationChangeLog rcl " +
+                "WHERE rcl.reservation.id = :reservationId " +
+                "ORDER BY rcl.changeDate DESC", ReservationChangeLog.class)
+                .setParameter("reservationId", reservationId)
                 .getResultList();
     }
 }

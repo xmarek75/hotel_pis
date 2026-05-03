@@ -39,6 +39,9 @@ public class ReservationResource {
     @Inject
     ExtraServiceRepository extraServiceRepository;
 
+    @Context
+    SecurityContext securityContext;
+
     @GET
     @Operation(summary = "List all reservations", description = "Retrieves all hotel bookings from the database.")
     public List<Reservation> all() {
@@ -54,16 +57,12 @@ public class ReservationResource {
 
     @POST
     @Operation(summary = "Create new reservation", description = "Registers a new booking. Automatically links to the currently logged-in employee if not specified.")
-    public Reservation create(ReservationRequest request, @Context SecurityContext securityContext) {
+    public Reservation create(ReservationRequest request) {
         Reservation reservation = toReservation(request);
-        if (reservation.getEmployeeId() == null && reservation.getEmployee() == null && securityContext != null
-                && securityContext.getUserPrincipal() != null) {
-            String username = securityContext.getUserPrincipal().getName();
-            if (username != null && !username.isBlank()) {
-                Employee employee = employeeRepository.findByUsername(username);
-                if (employee != null && employee.isActive()) {
-                    reservation.setEmployeeId(employee.getId());
-                }
+        if (reservation.getEmployeeId() == null && reservation.getEmployee() == null) {
+            Employee employee = getCurrentEmployee();
+            if (employee != null) {
+                reservation.setEmployeeId(employee.getId());
             }
         }
         return reservationManager.create(reservation);
@@ -74,7 +73,7 @@ public class ReservationResource {
     @Operation(summary = "Update reservation", description = "Modifies an existing booking's dates, guests, or requests.")
     public Reservation update(@PathParam("id") Long id, ReservationRequest request) {
         Reservation reservation = toReservation(request);
-        return reservationManager.update(id, reservation);
+        return reservationManager.update(id, reservation, getCurrentEmployee());
     }
 
     @PUT
@@ -84,7 +83,7 @@ public class ReservationResource {
         if (status == null) {
             throw new BadRequestException("Missing query param 'value' with reservation status");
         }
-        return reservationManager.updateStatus(id, status);
+        return reservationManager.updateStatus(id, status, getCurrentEmployee());
     }
 
     @DELETE
@@ -139,6 +138,19 @@ public class ReservationResource {
             mappedItems.add(mapped);
         }
         return mappedItems;
+    }
+
+    private Employee getCurrentEmployee() {
+        if (securityContext != null && securityContext.getUserPrincipal() != null) {
+            String username = securityContext.getUserPrincipal().getName();
+            if (username != null && !username.isBlank()) {
+                Employee employee = employeeRepository.findByUsername(username);
+                if (employee != null && employee.isActive()) {
+                    return employee;
+                }
+            }
+        }
+        return null;
     }
 
     public static class ReservationRequest {
