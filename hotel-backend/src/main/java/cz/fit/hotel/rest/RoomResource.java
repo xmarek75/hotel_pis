@@ -23,7 +23,7 @@ import java.util.Set;
 @Path("/rooms")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
-@RolesAllowed({"administrator", "RECEPTIONIST"})
+@RolesAllowed({ "administrator", "RECEPTIONIST", "MANAGER" })
 @Tag(name = "Rooms", description = "Management of hotel rooms, capacity, and inventory")
 public class RoomResource {
 

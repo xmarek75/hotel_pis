@@ -15,7 +15,7 @@ import java.util.List;
 @Path("/customers")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
-@RolesAllowed({"administrator", "RECEPTIONIST"})
+@RolesAllowed({ "administrator", "RECEPTIONIST", "MANAGER" })
 @Tag(name = "Customers", description = "Management of hotel guests (CRUD)")
 public class CustomerResource {
 

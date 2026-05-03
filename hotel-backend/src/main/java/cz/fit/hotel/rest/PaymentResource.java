@@ -7,7 +7,6 @@ import cz.fit.hotel.model.Employee;
 import cz.fit.hotel.model.Reservation;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
-import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 
@@ -18,7 +17,7 @@ import java.util.List;
 @Path("/payments")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
-@RolesAllowed({"administrator", "RECEPTIONIST"})
+@RolesAllowed({ "administrator", "RECEPTIONIST", "MANAGER" })
 public class PaymentResource {
 
     @Inject
@@ -58,11 +57,11 @@ public class PaymentResource {
         Payment payment = new Payment();
 
         Reservation reservation = new Reservation();
-        reservation.setId(request.reservationId); 
+        reservation.setId(request.reservationId);
 
         payment.setReservation(reservation);
         payment.setAmount(request.amount);
-        
+
         if (request.method != null && !request.method.isBlank()) {
             try {
                 payment.setMethod(PaymentMethod.valueOf(request.method.trim().toUpperCase()));
@@ -70,7 +69,7 @@ public class PaymentResource {
                 throw new BadRequestException("Invalid payment method");
             }
         }
-        
+
         if (request.employeeId != null) {
             Employee employee = new Employee();
             employee.setId(request.employeeId);
