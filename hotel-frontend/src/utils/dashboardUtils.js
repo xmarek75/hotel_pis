@@ -275,3 +275,12 @@ export function getCellOccupancy(room, day, reservations) {
   }
   return { state: "free", reservation: null };
 }
+
+export const mapRole = (role) => {
+  switch (role) {
+    case "ADMINISTRATOR": return "Administrátor";
+    case "MANAGER": return "Manažer";
+    case "RECEPTIONIST": return "Recepční";
+    default: return "-";
+  }
+}

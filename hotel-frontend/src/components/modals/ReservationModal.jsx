@@ -2,16 +2,14 @@ import { useMemo, useState } from "react";
 import BaseModal from "./BaseModal";
 import { createPortal } from "react-dom";
 import { useEmployees } from "../../queries/useEmployees";
-//delete payment statuses 
-import { EMPLOYEE_ROLES, RESERVATION_STATUSES } from "../../utils/dashboardConstants";
 import { useServices } from "../../queries/useServices";
 import { calculateAgeFromDate, enrichReservation, formatDate, formatDateTime, formatMoney, normalizeServiceSelections, mapReservationServiceItems } from "../../utils/dashboardUtils";
 import { useDeleteReservation, useEditReservation, useEditReservationStatus, useReservations } from "../../queries/useReservations";
 import { useRooms } from "../../queries/useRooms";
 import { useCustomers } from "../../queries/useCustomers";
-
 import { useAuth } from "../../auth/AuthContext";// pro získání role uživatele a zobrazení některých informací pouze adminům
 import { useCreatePayment, useReservationPaymentSummary } from "../../queries/usePayment";
+import { RESERVATION_STATUSES } from "../../utils/dashboardConstants";
 
 
 export default function ReservationModal({reservationId, onClose}) {
