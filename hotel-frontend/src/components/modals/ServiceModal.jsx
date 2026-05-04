@@ -3,25 +3,22 @@ import { useServices, useUpsertService } from "../../queries/useServices";
 import BaseModal from "./BaseModal";
 import { createPortal } from "react-dom";
 
-export default function ServiceModal({serviceId, onClose}) {
+export default function ServiceModal({ serviceId, onClose }) {
   const { data: service, isLoading } = useServices({
-      select: (services) => services.find((s) => s.id === serviceId),
-    });
+    select: (services) => services.find((s) => s.id === serviceId),
+  });
 
   const { mutate, isPending, error: mutationError } = useUpsertService();
 
-  const [form, setForm] = useState(() => {
-    if (service) {
-      return {
-        id: service.id ?? "",
-        name: service.name ?? "",
-        price: service.price ?? "",
-        description: service.description ?? "",
-      };
-    }
-    return { id: "", name: "", price: 0, description: "" };
-  });
+  const [form, setForm] = useState(({
+    id: service?.id ?? "",
+    name: service?.name ?? "",
+    price: service?.price ?? "",
+    description: service?.description ?? "",
+  }));
+
   const [successMessage, setSuccessMessage] = useState("");
+  const [validationError, setValidationError] = useState("");
 
   const updateForm = (field, value) => {
     setForm((prev) => ({
@@ -30,18 +27,34 @@ export default function ServiceModal({serviceId, onClose}) {
     }));
   };
 
+  const handleInputChange = (field, value) => {
+    updateForm(field, value);
+    setValidationError("");
+    setSuccessMessage("");
+  };
+
   const handleSubmit = () => {
+    if (!form.name.trim()) {
+      setValidationError("Název služby nesmí být prázdný.");
+      return;
+    }
+
+    const parsedPrice = parseFloat(form.price);
+    if (isNaN(parsedPrice) || form.price === "") {
+      setValidationError("Cena musí být platné číslo.");
+      return;
+    }
+
     const payload = { 
       ...form, 
       id: serviceId || form.id,
-      price: parseFloat(form.price)
+      price: parsedPrice
     };
-
-    setSuccessMessage("");
 
     mutate(payload, {
       onSuccess: (data) => {
-        setSuccessMessage(form?.id ? "Služba byla úspěšně uložena." : "Služba byla úspěšně vytvořena.");
+        const msg = form?.id ? "Služba byla úspěšně uložena." : "Služba byla úspěšně vytvořená.";
+        setSuccessMessage(msg);
         
         if (!serviceId && data?.id) {
           updateForm("id", data.id);
@@ -56,11 +69,14 @@ export default function ServiceModal({serviceId, onClose}) {
         <p>Načítání...</p>
       ) : (
         <>
-          {/* service form */}
           <div className="reservation-form-grid">
             <label>
               <span>Název služby</span>
-              <input value={form.name} onChange={(e) => updateForm("name", e.target.value)} />
+              <input 
+                placeholder="Např. Masáž lávovými kameny"
+                value={form.name} 
+                onChange={(e) => handleInputChange("name", e.target.value)} 
+              />
             </label>
             <label>
               <span>Cena</span>
@@ -68,40 +84,44 @@ export default function ServiceModal({serviceId, onClose}) {
                 type="number"
                 min={0}
                 step="0.01"
+                placeholder="0.00"
                 value={form.price}
-                onChange={(e) => updateForm("price", e.target.value)}
+                onChange={(e) => handleInputChange("price", e.target.value)}
               />
             </label>
             <label className="reservation-form-grid__full">
               <span>Popis</span>
               <textarea
                 rows={3}
+                placeholder="Krátký popis služby..."
                 value={form.description}
-                onChange={(e) => updateForm("description", e.target.value)}
+                onChange={(e) => handleInputChange("description", e.target.value)}
               />
             </label>
           </div>
 
-          {/* error message */}
-          {mutationError && (
+          {(mutationError || validationError) && (
             <p className="status status--error">
-              {mutationError.message}
+              {validationError || mutationError?.message}
             </p>
           )}
 
-          {/* success message */}
           {successMessage && (
             <p className="status status--success">
               {successMessage}
             </p>
           )}
 
-          {/* action buttons */}          
           <div className="reservation-actions">
             <button className="btn btn--secondary" type="button" onClick={onClose}>
               Zrušit
             </button>
-            <button className="btn btn--primary" type="button" disable={isPending} onClick={handleSubmit}>
+            <button 
+              className="btn btn--primary" 
+              type="button" 
+              disabled={isPending} 
+              onClick={handleSubmit}
+            >
               {form?.id ? "Uložit službu" : "Vytvořit službu"}              
             </button>
           </div>
