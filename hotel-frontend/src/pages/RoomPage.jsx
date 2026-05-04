@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { formatMoney, formatRoomServices, getRoomTypeName } from "../components/dashboard/dashboardUtils";
 import { useRooms } from "../queries/useRooms";
-import RoomModal from "../components/dashboard/modals/RoomModal";
+import RoomModal from "../components/modals/RoomModal";
 
 export default function RoomPage() {
   const { role } = useAuth();

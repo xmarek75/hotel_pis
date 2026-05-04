@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useRoomAmenities, useRooms, useRoomTypes, useUpsertRoom } from "../../../queries/useRooms";
+import { useRoomAmenities, useRooms, useRoomTypes, useUpsertRoom } from "../../queries/useRooms";
 import BaseModal from "./BaseModal";
 import { createPortal } from "react-dom";
 
@@ -16,6 +16,7 @@ export default function RoomModal({roomId, onClose}) {
   const [form, setForm] = useState(() => {
     if (room) {
       return {
+        id: room.id ?? "",
         number: room.number ?? "",
         typeId: room.type ? String(room.type.id) : "",
         typeName: room.type ? String(room.type.name) : "",
@@ -25,7 +26,7 @@ export default function RoomModal({roomId, onClose}) {
         active: room.active !== false,
       };
     }
-    return { number: "", typeId: "", capacity: 2, pricePerNight: "", roomServiceIds: [], active: true };
+    return { id: "", number: "", typeId: "", capacity: 2, pricePerNight: "", roomServiceIds: [], active: true };
   });
   const [successMessage, setSuccessMessage] = useState("");
 

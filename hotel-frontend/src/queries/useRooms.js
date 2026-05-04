@@ -55,6 +55,45 @@ const upsertRoom = async ({ authHeader, payload }) => {
   return res.json();
 };
 
+const upsertRoomAmenity = async ({ authHeader, payload }) => {
+  const isEdit = !!payload.id;
+  const url = isEdit ? `${API_BASE}/room-amenities/${payload.id}` : `${API_BASE}/room-amenities`;
+  
+  const res = await fetch(url, {
+    method: isEdit ? "PUT" : "POST",
+    headers: { 
+      Authorization: authHeader, 
+      "Content-Type": "application/json",
+      Accept: "application/json" 
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Uložení se nezdařilo (${res.status})`);
+  }
+
+  return res.json();
+};
+
+const deleteRoomAmenity = async ({ authHeader, id }) => {
+  const res = await fetch(`${API_BASE}/room-amenities/${id}`, {
+    method: "DELETE",
+    headers: { 
+      Authorization: authHeader,
+      Accept: "application/json" 
+    },
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Smazání služby selhalo (${res.status})`);
+  }
+
+  return true;
+};
+
 export const useRooms = (options = {}) => {
   const { authHeader } = useAuth();
 
@@ -96,6 +135,30 @@ export const useUpsertRoom = () => {
     mutationFn: (payload) => upsertRoom({ authHeader, payload }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["rooms"] });
+    },
+  });
+};
+
+export const useUpsertRoomAmenity = () => {
+  const { authHeader } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload) => upsertRoomAmenity({ authHeader, payload }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["room-amenities"] });
+    },
+  });
+};
+
+export const useDeleteRoomAmenity = () => {
+  const { authHeader } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id) => deleteRoomAmenity({ authHeader, id }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["room-amenities"] });
     },
   });
 };
