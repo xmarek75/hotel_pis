@@ -28,6 +28,9 @@ public class Room {
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal pricePerNight = BigDecimal.ZERO;
 
+    @Column(nullable = false)
+    private boolean active = true;
+
     @ManyToMany
     @JoinTable(
             name = "room_room_service",
@@ -68,6 +71,14 @@ public class Room {
 
     public void setType(RoomType type) {
         this.type = type;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
     }
 
     public Integer getCapacity() {

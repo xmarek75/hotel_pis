@@ -91,6 +91,7 @@ public class RoomResource {
         room.setCapacity(request.capacity);
         room.setPricePerNight(request.pricePerNight == null ? BigDecimal.ZERO : request.pricePerNight);
         room.setType(resolveRoomType(request));
+        if (request.active != null) room.setActive(request.active);
         return room;
     }
 
@@ -139,5 +140,6 @@ public class RoomResource {
         public Integer capacity;
         public BigDecimal pricePerNight;
         public List<Long> roomServiceIds;
+        public Boolean active;
     }
 }

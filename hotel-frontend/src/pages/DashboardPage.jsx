@@ -80,6 +80,8 @@ export default function DashboardPage() {
   const filteredOccupancyRooms = useMemo(() => {
     if (!rooms) return [];
     return rooms.filter((room) => {
+      if (!room.active) return false;
+
       if (occupancyCapacityMode !== "all") {
         const capacity = Number(room.capacity ?? 0);
         const limit = Number(occupancyCapacityValue);

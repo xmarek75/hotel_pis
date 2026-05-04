@@ -2,17 +2,22 @@ package cz.fit.hotel.business;
 
 import cz.fit.hotel.model.Room;
 import cz.fit.hotel.repository.RoomRepository;
+import cz.fit.hotel.repository.ReservationRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 
 import java.util.List;
+import java.time.LocalDate;
 
 @ApplicationScoped
 public class RoomManager {
 
     @Inject
     RoomRepository roomRepository;
+
+    @Inject
+    ReservationRepository reservationRepository;
 
     public List<Room> findAll() {
         return roomRepository.findAll();
@@ -67,15 +72,20 @@ public class RoomManager {
             room.setPricePerNight(payload.getPricePerNight());
         }
 
+        if (room.isActive() && !payload.isActive()) {
+            validateNoUpcomingReservations(room);
+        }
+        room.setActive(payload.isActive());
+
         return roomRepository.update(room);
     }
 
     @Transactional
     public void deactivate(Long id) {
         Room room = requireRoom(id);
-        // Room entity doesn't have setActive anymore, needs another way to handle deactivation or ignore.
-        // Assuming we throw an exception or handle it differently based on new model.
-        throw new UnsupportedOperationException("Room deactivation not supported in the new model");
+        validateNoUpcomingReservations(room);
+        room.setActive(false);
+        roomRepository.update(room);
     }
 
     private Room requireRoom(Long id) {
@@ -84,5 +94,15 @@ public class RoomManager {
             throw new IllegalArgumentException("Room not found");
         }
         return room;
+    }
+
+    private void validateNoUpcomingReservations(Room room) {
+        LocalDate today = LocalDate.now();
+
+        boolean hasUpcoming = reservationRepository.hasUpcomingReservations(room.getId(), today);
+
+        if (hasUpcoming) {
+            throw new IllegalArgumentException("Room cannot be deactivated, it has upcoming reservations");
+        }
     }
 }
