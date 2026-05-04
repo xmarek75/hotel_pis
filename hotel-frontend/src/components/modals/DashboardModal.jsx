@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { addDays, calculateAgeFromDate, calculateSelectedServicesTotal, formatDate, formatIsoDay, formatMoney, getRoomTypeName, normalizeServiceSelections, parseLocalDate } from "../dashboard/dashboardUtils";
+import { addDays, calculateAgeFromDate, calculateSelectedServicesTotal, formatDate, formatIsoDay, formatMoney, getRoomTypeName, normalizeServiceSelections, parseLocalDate } from "../../utils/dashboardUtils";
 import BaseModal from "./BaseModal";
 import { createPortal } from "react-dom";
 import { useServices } from "../../queries/useServices";

@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
-import { DAYS_TO_SHOW, RANGE_OPTIONS } from "../components/dashboard/dashboardConstants";
+import { DAYS_TO_SHOW, RANGE_OPTIONS } from "../utils/dashboardConstants";
 import { useAuth } from "../auth/AuthContext";
-import { addDays, formatDayLabel, formatIsoDay, formatMonthLabel, formatRangeLabel, getCellOccupancy, getRoomServiceIds, startOfDay } from "../components/dashboard/dashboardUtils";
+import { addDays, formatDayLabel, formatIsoDay, formatMonthLabel, formatRangeLabel, getCellOccupancy, getRoomServiceIds, startOfDay } from "../utils/dashboardUtils";
 import { useRoomAmenities, useRooms } from "../queries/useRooms";
 import { useReservations } from "../queries/useReservations";
 import DashboardModal from "../components/modals/DashboardModal";
