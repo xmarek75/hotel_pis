@@ -5,8 +5,9 @@ import { useAuth } from "./auth/AuthContext";
 export const AppLayout = () => {
   const navigate = useNavigate();
   const path = useLocation();
-  const { logout } = useAuth();
-
+  //const { logout } = useAuth();
+  const { logout, username, role } = useAuth();
+  
   const title = useMemo(() => {
     switch(path.pathname) {
       case "/reservations": return "Správa rezervací";
@@ -26,8 +27,16 @@ export const AppLayout = () => {
   return (
     <main className="dashboard-shell">
       <div className="dashboard-shell__glow" aria-hidden="true" />
-      <button className="btn btn--secondary dashboard-logout-fixed" onClick={handleLogout} type="button">
-        Odhlásit
+      
+      <button
+        className="btn btn--secondary dashboard-logout-fixed dashboard-logout-user"
+        onClick={handleLogout}
+        type="button"
+      >
+        <span>Odhlásit se</span>
+        <span className="dashboard-logout-user__meta">
+          {username} ({role})
+        </span>
       </button>
 
       <section className="dashboard-wrap">
@@ -35,10 +44,6 @@ export const AppLayout = () => {
           <div className="dashboard-topbar__left">
             <div className="dashboard-topbar__eyebrow-row">
               <p className="dashboard-topbar__eyebrow">HOTEL PIS</p>
-              <span className="dashboard-topbar__pill">
-                <span className="dashboard-topbar__pill-dot" />
-                Systém online
-              </span>
             </div>
             <h1 className="dashboard-topbar__title">{title}</h1>
             <nav className="dashboard-nav" aria-label="Přepnutí sekce">

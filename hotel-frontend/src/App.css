@@ -525,6 +525,18 @@
   background: rgba(255, 255, 255, 0.85);
   box-shadow: 0 10px 22px rgba(18, 40, 72, 0.16);
 }
+.dashboard-logout-user {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  line-height: 1.15;
+}
+
+.dashboard-logout-user__meta {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
 
 .dashboard-wrap {
   position: relative;
@@ -1503,6 +1515,7 @@
     top: 0.6rem;
     right: 0.6rem;
   }
+  
 }
 
 @media (max-width: 760px) {
@@ -1621,3 +1634,4 @@
     transition: none;
   }
 }
+
