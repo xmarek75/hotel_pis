@@ -140,8 +140,10 @@ public class ReservationManager {
             reservation.setPaymentStatus(payload.getPaymentStatus());
         }
         if (payload.getExtraServices() != null) {
-            logManager.logChange(reservation, actor, "extraServices", "Updated", "Updated");
+            String oldSummary = summarizeServices(reservation.getExtraServices());
             applyServiceItems(reservation, payload.getExtraServices());
+            String newSummary = summarizeServices(reservation.getExtraServices());
+            logManager.logChange(reservation, actor, "extraServices", oldSummary, newSummary);
         }
 
         validateDates(reservation);
@@ -337,5 +339,14 @@ public class ReservationManager {
         )) {
             throw new IllegalArgumentException("Room is already reserved in the selected date range");
         }
+    }
+
+    private String summarizeServices(java.util.Set<ReservationExtraService> services) {
+        if (services == null || services.isEmpty()) {
+            return "No services";
+        }
+        return services.stream()
+                .map(s -> (s.getService() != null ? s.getService().getName() : "Unknown") + " x" + s.getQuantity())
+                .collect(java.util.stream.Collectors.joining(", "));
     }
 }
