@@ -94,10 +94,10 @@ export default function ReservationModal({reservationId, onClose}) {
       ),
     }));
   }
-
+  const { status, paymentStatus, roomCapacity, ...reservationForm } = form;
   const handleSubmit = () => {
     const payload = { 
-      ...form,
+      ...reservationForm,
       serviceItems: normalizeServiceSelections(form.serviceItems).map((item) => ({
         serviceId: Number(item.serviceId),
         quantity: Number(item.quantity),
