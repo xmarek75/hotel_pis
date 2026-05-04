@@ -21,4 +21,8 @@ export const RESERVATION_SORT_FIELDS = [
   { value: "totalPrice", label: "Cena" },
 ];
 
-export const EMPLOYEE_ROLES = ["ADMINISTRATOR", "RECEPTIONIST", "MANAGER"];
+export const EMPLOYEE_ROLES = [
+  { value: "RECEPTIONIST", label: "Recepční" }, 
+  { value: "MANAGER", label: "Manažer" }, 
+  { value: "ADMINISTRATOR", label: "Administrátor" },
+];

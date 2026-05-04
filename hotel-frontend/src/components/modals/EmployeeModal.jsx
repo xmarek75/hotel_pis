@@ -4,28 +4,30 @@ import { createPortal } from "react-dom";
 import { useEmployees, useUpsertEmployee } from "../../queries/useEmployees";
 import { EMPLOYEE_ROLES } from "../../utils/dashboardConstants";
 
-// FIXME: change password modal
-
-export default function EmployeeModal({employeeId, onClose}) {
+export default function EmployeeModal({ employeeId, onClose }) {
   const { data: employee, isLoading } = useEmployees({
-      select: (employees) => employees.find((e) => e.id === employeeId),
-    });
+    select: (employees) => employees.find((e) => e.id === employeeId),
+  });
 
   const { mutate, isPending, error: mutationError } = useUpsertEmployee();
 
-  const [form, setForm] = useState(() => {
-    if (employee) {
-      return {
-        id: employee.id ?? "",
-        name: employee.name ?? "",
-        username: employee.username ?? "",
-        contact: employee.contact ?? "",
-        role: employee.role ?? "",
-      };
-    }
-    return { id: "", name: "", username: "", contact: "", role: "ADMINISTRATOR", password: "", confirmPassword: "" };
+  const [changePassword, setChangePassword] = useState(!employeeId);
+
+  const [form, setForm] = useState({
+    id: employee?.id ?? "",
+    name: employee?.name ?? "",
+    username: employee?.username ?? "",
+    contact: employee?.contact ?? "",
+    role: employee?.role ?? "RECEPTIONIST",
+    password: "",
+    passwordConfirm: ""
   });
+  
   const [successMessage, setSuccessMessage] = useState("");
+  const [validationError, setValidationError] = useState("");
+
+  const passwordsMatch = form.password === form.passwordConfirm;
+  const showPasswordError = changePassword && form.passwordConfirm.length > 0 && !passwordsMatch;
 
   const updateForm = (field, value) => {
     setForm((prev) => ({
@@ -34,100 +36,163 @@ export default function EmployeeModal({employeeId, onClose}) {
     }));
   };
 
-  const handleSubmit = () => {
-    const payload = { 
-      ...form, 
-      id: employeeId || form.id,
-    };
-
+  const handleInputChange = (field, value) => {
+    updateForm(field, value);
+    setValidationError("");
     setSuccessMessage("");
+  };
+
+  const handleSubmit = () => {
+
+    if (!form.name.trim()) {
+      setValidationError("Jméno nesmí být prázdné.");
+      return;
+    }
+
+    if (!form.username.trim()) {
+      setValidationError("Uživatelské jméno nesmí být prázdné.");
+      return;
+    }
+
+    if (changePassword && !passwordsMatch) {
+      setValidationError("Hesla se neshodují.");
+      return;
+    }
+
+    if (changePassword && !form.password && !employeeId) {
+      setValidationError("Heslo nesmí být prázdné.");
+      return;
+    }
+
+    const payload = {
+      id: employeeId || form.id,
+      name: form.name,
+      username: form.username,
+      contact: form.contact,
+      role: form.role,
+      ...(changePassword && { password: form.password })
+    };
 
     mutate(payload, {
       onSuccess: (data) => {
-        setSuccessMessage(form?.id ? "Zaměstnanec byl úspěšně uložen." : "Zaměstnanec byl úspěšně vytvořen.");
+        const msg = form?.id ? "Zaměstnanec byl úspěšně uložen." : "Zaměstnanec byl úspěšně vytvořen.";
+        setSuccessMessage(msg);
         
         if (!employeeId && data?.id) {
           updateForm("id", data.id);
         }
       }
     });
-  }
+  };
+
+  const inputErrorStyle = { borderColor: "red" };
 
   return createPortal((
-    <BaseModal title={employeeId ? "Upravit zaměstnance": "Přidat zaměstnance"} onClose={onClose}>
+    <BaseModal title={employeeId ? "Upravit zaměstnance" : "Přidat zaměstnance"} onClose={onClose}>
       {isLoading ? (
         <p>Načítání...</p>
       ) : (
         <>
-          {/* employee form */}
           <div className="reservation-form-grid">
             <label>
               <span>Jméno</span>
-              <input value={form.name} onChange={(e) => updateForm("name", e.target.value)} />
+              <input 
+                placeholder="Zadejte celé jméno" 
+                value={form.name} 
+                onChange={(e) => handleInputChange("name", e.target.value)} 
+              />
             </label>
             <label>
-              <span>Username</span>
-              <input value={form.username} onChange={(e) => updateForm("username", e.target.value)} />
+              <span>Uživatelské jméno</span>
+              <input 
+                placeholder="Zadejte uživatelské jméno" 
+                value={form.username} 
+                onChange={(e) => handleInputChange("username", e.target.value)} 
+              />
             </label>
             <label>
-              <span>Kontakt</span>
-              <input value={form.contact} onChange={(e) => updateForm("contact", e.target.value)} />
+              <span>Kontakt (telefon)</span>
+              <input 
+                placeholder="+420..." 
+                value={form.contact} 
+                onChange={(e) => handleInputChange("contact", e.target.value)} 
+              />
             </label>
             <label>
               <span>Role</span>
-              <select value={form.role} onChange={(e) => updateForm("role", e.target.value)}>
+              <select value={form.role} onChange={(e) => handleInputChange("role", e.target.value)}>
                 {EMPLOYEE_ROLES.map((role) => (
-                  <option key={role} value={role}>
-                    {role}
-                  </option>
+                  <option key={role.value} value={role.value}>{role.label}</option>
                 ))}
               </select>
             </label>
-            {!form?.id && (
-              <>
-                <label>
-                  <span>Heslo</span>
+
+            <div style={{ gridColumn: "span 2" }}>
+              {employeeId && (
+                <label style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
                   <input
-                    type="password"
-                    value={form.password}
-                    autoComplete="new-password"
-                    onChange={(e) => updateForm("password", e.target.value)}
+                    type="checkbox"
+                    checked={changePassword}
+                    onChange={() => {
+                      setChangePassword(prev => !prev);
+                      setSuccessMessage("");
+                      setValidationError("");
+                    }}
                   />
+                  <span>Změnit heslo</span>
                 </label>
-                <label>
-                  <span>Potvrzení hesla</span>
-                  <input
-                    type="password"
-                    value={form.passwordConfirm}
-                    autoComplete="new-password"
-                    onChange={(e) => updateForm("passwordConfirm", e.target.value)}
-                  />
-                </label>
-              </>
-            )}
+              )}
+
+              {changePassword && (
+                <div className="reservation-form-grid" style={{ marginTop: employeeId ? "10px" : "0" }}>
+                  <label>
+                    <span>Heslo</span>
+                    <input
+                      type="password"
+                      placeholder="••••••••"
+                      value={form.password}
+                      autoComplete="new-password"
+                      style={showPasswordError ? inputErrorStyle : {}}
+                      onChange={(e) => handleInputChange("password", e.target.value)}
+                    />
+                  </label>
+                  <label>
+                    <span>Potvrzení hesla</span>
+                    <input
+                      type="password"
+                      placeholder="••••••••"
+                      value={form.passwordConfirm}
+                      autoComplete="new-password"
+                      style={showPasswordError ? inputErrorStyle : {}}
+                      onChange={(e) => handleInputChange("passwordConfirm", e.target.value)}
+                    />
+                  </label>
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* error message */}
-          {mutationError && (
+          {(mutationError || validationError || showPasswordError) && (
             <p className="status status--error">
-              {mutationError.message}
+              {validationError || mutationError?.message || (showPasswordError && "Hesla se neshodují")}
             </p>
           )}
 
-          {/* success message */}
           {successMessage && (
-            <p className="status status--success">
-              {successMessage}
-            </p>
+            <p className="status status--success">{successMessage}</p>
           )}
 
-          {/* action buttons */}          
           <div className="reservation-actions">
             <button className="btn btn--secondary" type="button" onClick={onClose}>
               Zrušit
             </button>
-            <button className="btn btn--primary" type="button" disable={isPending} onClick={handleSubmit}>
-              {form?.id ? "Uložit zaměstnance" : "Vytvořit zaměstnance"}              
+            <button 
+              className="btn btn--primary" 
+              type="button" 
+              disabled={isPending} 
+              onClick={handleSubmit}
+            >
+              {form?.id ? "Uložit zaměstnance" : "Vytvořit zaměstnance"}
             </button>
           </div>
         </>

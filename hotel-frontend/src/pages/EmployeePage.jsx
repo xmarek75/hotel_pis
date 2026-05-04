@@ -5,6 +5,7 @@ import RoomAmenityModal from "../components/modals/RoomAmenityModal";
 import CustomerModal from "../components/modals/CustomerModal";
 import { useDeleteEmployee, useEmployees } from "../queries/useEmployees";
 import EmployeeModal from "../components/modals/EmployeeModal";
+import { mapRole } from "../utils/dashboardUtils";
 
 export default function EmployeePage() {
   const { role } = useAuth();
@@ -43,7 +44,7 @@ export default function EmployeePage() {
               <thead>
                 <tr>
                   <th>Jméno</th>
-                  <th>Username</th>
+                  <th>Uživatelské jméno</th>
                   <th>Role</th>
                   <th>Kontakt</th>
                   <th>Stav</th>
@@ -60,28 +61,30 @@ export default function EmployeePage() {
                     <tr key={`manage-emp-${employee.id}`}>
                       <td>{employee.name ?? "-"}</td>
                       <td>{employee.username ?? "-"}</td>
-                      <td>{employee.role ?? "-"}</td>
+                      <td>{mapRole(employee.role)}</td>
                       <td>{employee.contact ?? "-"}</td>
                       <td>{employee.active === false ? "Neaktivní" : "Aktivní"}</td>
                       <td>
-                        <div className="row-actions">
-                          <button
-                            className="btn btn--secondary btn--compact"
-                            type="button"
-                            disabled={!canManageEmployees}
-                            onClick={() => openModal("EMPLOYEE", employee)}
-                          >
-                            Upravit
-                          </button>
-                          <button
-                            className="btn btn--danger btn--compact"
-                            type="button"
-                            disabled={!canManageEmployees || isDeleteEmployeePending}
-                            onClick={() => deleteEmployee(employee.id)}
-                          >
-                            Smazat
-                          </button>
-                        </div>
+                        {employee.active === true && (
+                          <div className="row-actions">
+                            <button
+                              className="btn btn--secondary btn--compact"
+                              type="button"
+                              disabled={!canManageEmployees}
+                              onClick={() => openModal("EMPLOYEE", employee)}
+                            >
+                              Upravit
+                            </button>
+                            <button
+                              className="btn btn--danger btn--compact"
+                              type="button"
+                              disabled={!canManageEmployees || isDeleteEmployeePending}
+                              onClick={() => deleteEmployee(employee.id)}
+                            >
+                              Smazat
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))

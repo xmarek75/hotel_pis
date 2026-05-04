@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import BaseModal from "./BaseModal";
 import { createPortal } from "react-dom";
 import { useEmployees } from "../../queries/useEmployees";
-import { EMPLOYEE_ROLES, PAYMENT_STATUSES, RESERVATION_STATUSES } from "../../utils/dashboardConstants";
+import { PAYMENT_STATUSES, RESERVATION_STATUSES } from "../../utils/dashboardConstants";
 import { useServices } from "../../queries/useServices";
 import { calculateAgeFromDate, enrichReservation, formatDate, formatDateTime, formatMoney, normalizeServiceSelections } from "../../utils/dashboardUtils";
 import { useDeleteReservation, useEditReservation, useEditReservationStatus, useReservations } from "../../queries/useReservations";
