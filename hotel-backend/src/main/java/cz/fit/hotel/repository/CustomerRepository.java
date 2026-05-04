@@ -1,8 +1,6 @@
 package cz.fit.hotel.repository;
 
 import cz.fit.hotel.model.Customer;
-import cz.fit.hotel.model.Reservation;
-import cz.fit.hotel.model.ReservationStatus;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
