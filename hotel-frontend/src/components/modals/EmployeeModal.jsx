@@ -4,17 +4,17 @@ import { createPortal } from "react-dom";
 import { useEmployees, useUpsertEmployee, useDeleteEmployee } from "../../queries/useEmployees";
 import { EMPLOYEE_ROLES } from "../../utils/dashboardConstants";
 
+
 export default function EmployeeModal({ employeeId, onClose }) {
   const { data: employee, isLoading } = useEmployees({
     select: (employees) => employees.find((e) => e.id === employeeId),
   });
-
   const {
     mutate,
     isPending,
     error: mutationError,
   } = useUpsertEmployee();
-  
+
   const {
     mutate: toggleEmployeeActive,
     isPending: activeIsPending,
@@ -46,6 +46,8 @@ export default function EmployeeModal({ employeeId, onClose }) {
   const passwordsMatch = form.password === form.passwordConfirm;
   const showPasswordError = changePassword && form.passwordConfirm.length > 0 && !passwordsMatch;
 
+  const isTargetAdmin = employee?.role === "ADMINISTRATOR";
+  const cannotDeactivateAdmin = isTargetAdmin && form.active;
   const updateForm = (field, value) => {
     setForm((prev) => ({
       ...prev,
@@ -106,6 +108,10 @@ export default function EmployeeModal({ employeeId, onClose }) {
     setSuccessMessage("");
 
     if (!employeeId) return;
+    if (cannotDeactivateAdmin) {
+      setValidationError("Admin účet nelze deaktivovat.");
+      return;
+    }
 
     if (employee?.active) {
       deactivateEmployee(employeeId, {
@@ -241,10 +247,11 @@ export default function EmployeeModal({ employeeId, onClose }) {
               Zrušit
             </button>
             {employeeId && (
-              <button
+              <button 
                 className={employee?.active ? "btn btn--danger" : "btn btn--secondary"}
                 type="button"
-                disabled={activeIsPending || deactivateIsPending}
+                disabled={activeIsPending || deactivateIsPending || cannotDeactivateAdmin}
+                title={cannotDeactivateAdmin ? "Admin účet nelze deaktivovat" : undefined}
                 onClick={handleToggleActive}
               >
                 {employee?.active ? "Deaktivovat" : "Aktivovat"}
