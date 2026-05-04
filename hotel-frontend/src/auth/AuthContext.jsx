@@ -1,74 +1,65 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useContext, useMemo, useState, useCallback } from "react";
 
 const AuthContext = createContext(null);
 const STORAGE_KEY = "hotel_jwt_auth";
 
-function toAuthState(session) {
-  if (!session?.username || !session?.token) return null;
-  return {
-    username: session.username,
-    role: session.role ?? null,
-    token: session.token,
-    authHeader: "Bearer " + session.token,
-  };
-}
+const getStoredAuth = () => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return {
+      ...parsed,
+      authHeader: `Bearer ${parsed.token}`
+    };
+  } catch {
+    return null;
+  }
+};
 
 export function AuthProvider({ children }) {
-  const [session, setSession] = useState(null);
+  const [user, setUser] = useState(() => getStoredAuth());
 
-  // načti přihlášení po refreshi
-  useEffect(() => {
+  const login = useCallback(({ username, token, role }) => {
+    const newUser = { 
+      username: username.trim(), 
+      token, 
+      role: role ?? 'user',
+      authHeader: `Bearer ${token}` 
+    };
+    
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      setSession(toAuthState(parsed));
-    } catch {
-      try {
-        localStorage.removeItem(STORAGE_KEY);
-      } catch {
-        // ignore storage access issues (e.g., browser policy / private mode)
-      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newUser));
+    } catch (e) {
+      console.error("Persistence failed", e);
     }
+    setUser(newUser);
   }, []);
 
-  const value = useMemo(
-    () => ({
-      session,
-      username: session?.username ?? null,
-      role: session?.role ?? null,
-      authHeader: session?.authHeader ?? null,
-      isAuthed: !!session,
-      login: ({ username, token, role }) => {
-        const next = toAuthState({ username: username.trim(), token, role });
-        if (!next) return;
-        try {
-          localStorage.setItem(
-            STORAGE_KEY,
-            JSON.stringify({ username: next.username, token: next.token, role: next.role })
-          );
-        } catch {
-          // ignore storage access issues, keep session in memory
-        }
-        setSession(next);
-      },
-      logout: () => {
-        try {
-          localStorage.removeItem(STORAGE_KEY);
-        } catch {
-          // ignore storage access issues
-        }
-        setSession(null);
-      },
-    }),
-    [session]
-  );
+  const logout = useCallback(() => {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (e) {
+      console.error("Persistence failed", e);
+    }
+    setUser(null);
+  }, []);
+
+  const value = useMemo(() => ({
+    user,
+    isAuthed: !!user,
+    username: user?.username ?? null,
+    role: user?.role ?? null,
+    authHeader: user?.authHeader ?? null,
+    login,
+    logout,
+  }), [user, login, logout]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used inside AuthProvider");
-  return ctx;
+  const context = useContext(AuthContext);
+  if (!context) throw new Error("useAuth must be used within AuthProvider");
+  return context;
 }
