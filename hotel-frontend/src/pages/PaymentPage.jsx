@@ -63,19 +63,16 @@ export default function PaymentPage() {
                         <td>{payment.reservation?.id ?? "-"}</td>
                         <td>{payment.employee?.name ?? payment.employee?.username ?? "-"}</td>
                         <td>
-                            {canRefundPayments ? (
-                                <button
-                                className="btn btn--danger btn--compact"
-                                type="button"
-                                disabled={deleteIsPending}
-                                onClick={() => handleDeletePayment(payment)}
-                                >
-                                Vrátit platbu
-                                </button>
-                            ) : (
-                                "-"
-                            )}
-                            </td>
+                            <button
+                            className="btn btn--danger btn--compact"
+                            type="button"
+                            disabled={!canRefundPayments || deleteIsPending}
+                            title={!canRefundPayments ? "Platby může vracet jen admin nebo manager" : undefined}
+                            onClick={() => handleDeletePayment(payment)}
+                            >
+                            Vrátit platbu
+                            </button>
+                        </td>
                         </tr>
                     ))
                     )}
