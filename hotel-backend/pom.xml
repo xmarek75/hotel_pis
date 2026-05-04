@@ -91,6 +91,17 @@
           <runtimeVersion>${liberty.runtime.version}</runtimeVersion>
           <serverName>defaultServer</serverName>
           <appContextRoot>hotel</appContextRoot>
+
+          <copyDependencies>
+            <dependencyGroup>
+              <location>jdbc</location>
+              <dependency>
+                <groupId>org.postgresql</groupId>
+                <artifactId>postgresql</artifactId>
+                <version>42.7.3</version>
+              </dependency>
+            </dependencyGroup>
+          </copyDependencies>
         </configuration>
       </plugin>
 

@@ -26,7 +26,7 @@
        at build time the liberty-maven-plugin copies it into the server/lib
        directory.  Use ${server.root}/lib so the path is valid at runtime. -->
     <library id="postgresqlLib">
-    <file name="${server.config.dir}/lib/postgresql-42.7.3.jar"/>
+    <fileset dir="${server.config.dir}/jdbc" includes="postgresql-*.jar"/>
     </library>
 
     <dataSource id="HotelDS" jndiName="jdbc/hotel">
