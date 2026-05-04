@@ -14,7 +14,10 @@ export default function RoomPage() {
   const openModal = (type, data = null) => setActiveModal({ type, data });
   const closeModal = () => setActiveModal({ type: null, data: null });
 
-  const canManageRooms = useMemo(() => role.toUpperCase() === "ADMINISTRATOR", [role]);
+  const canManageRooms = useMemo(
+    () => ["ADMINISTRATOR", "MANAGER"].includes(role?.toUpperCase()),
+    [role]
+  );
 
   return (
     <section className="panel panel--wide">

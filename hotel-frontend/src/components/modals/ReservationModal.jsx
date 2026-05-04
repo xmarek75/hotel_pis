@@ -49,6 +49,7 @@ export default function ReservationModal({reservationId, onClose}) {
     };
   });
   const [successMessage, setSuccessMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
 
   const updateForm = (field, value) => {
     setForm((prev) => ({
@@ -106,6 +107,7 @@ export default function ReservationModal({reservationId, onClose}) {
     };
 
     setSuccessMessage("");
+    setErrorMessage("");
 
     mutate(payload, {
       onSuccess: () => {
@@ -115,6 +117,23 @@ export default function ReservationModal({reservationId, onClose}) {
   }
 
   const handleStatusSubmit = () => {
+    if (form.status === "CHECKED_IN") {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const checkIn = new Date(`${selectedReservation.checkInDate}T00:00:00`);
+      const checkOut = new Date(`${selectedReservation.checkOutDate}T00:00:00`);
+
+      if (today < checkIn) {
+        setErrorMessage("Rezervace muze byt označena jako 'CHECKED_IN' nejdříve v den začátku rezervace.");
+        return;
+      }
+
+      if (today > checkOut) {
+        setErrorMessage("Rezervace muze byt označena jako 'CHECKED_IN' nejpozději v den konce rezervace.");
+        return;
+      }
+    }
     editStatus({
       id: reservationId, 
       status: form.status, 
@@ -295,6 +314,11 @@ export default function ReservationModal({reservationId, onClose}) {
               {paymentMutationError && (
                 <p className="status status--error">
                   {paymentMutationError.message}
+                </p>
+              )}
+              {errorMessage && (
+                <p className="status status--error">
+                  {errorMessage}
                 </p>
               )}
 
@@ -488,6 +512,11 @@ export default function ReservationModal({reservationId, onClose}) {
               {deleteMutationError && (
                 <p className="status status--error">
                   {deleteMutationError.message}
+                </p>
+              )}
+              {errorMessage && (
+                <p className="status status--error">
+                  {errorMessage}
                 </p>
               )}
 

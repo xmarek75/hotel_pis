@@ -19,7 +19,10 @@ export default function ServicePage() {
   const openModal = (type, data = null) => setActiveModal({ type, data });
   const closeModal = () => setActiveModal({ type: null, data: null });
 
-  const canManageServices = useMemo(() => role.toUpperCase() === "ADMINISTRATOR", [role]);
+  const canManageServices = useMemo(
+    () => ["ADMINISTRATOR", "MANAGER"].includes(role?.toUpperCase()),
+    [role]
+  );
 
   return (
     <section className="panel panel--wide">
