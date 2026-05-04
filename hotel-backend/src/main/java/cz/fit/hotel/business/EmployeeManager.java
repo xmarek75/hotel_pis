@@ -63,6 +63,9 @@ public class EmployeeManager {
         if (payload.getRole() != null) {
             employee.setRole(payload.getRole());
         }
+        if (payload.isActive() != null) {
+            employee.setActive(payload.isActive());
+        }
         validate(employee);
         return employeeRepository.update(employee);
     }

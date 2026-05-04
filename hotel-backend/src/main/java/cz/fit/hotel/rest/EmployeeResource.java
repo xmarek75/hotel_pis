@@ -77,6 +77,9 @@ public class EmployeeResource {
         if (!updateMode || (request.password != null && !request.password.isBlank())) {
             employee.setPassword(request.password);
         }
+        if (request.active != null) {
+            employee.setActive(request.active);
+        }
         return employee;
     }
 
@@ -86,5 +89,6 @@ public class EmployeeResource {
         public String contact;
         public String role;
         public String password;
+        public Boolean active;
     }
 }

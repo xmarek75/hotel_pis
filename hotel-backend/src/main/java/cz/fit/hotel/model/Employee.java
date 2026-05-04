@@ -31,7 +31,14 @@ public class Employee {
     private EmployeeRole role;
 
     @Column(nullable = false)
-    private boolean active = true;
+    private Boolean active;
+
+    @PrePersist
+    public void prePersist() {
+        if (this.active == null) {
+            this.active = true;
+        }
+    }
 
     @JsonbTransient
     @OneToMany(mappedBy = "employee", fetch = FetchType.LAZY)
@@ -95,11 +102,11 @@ public class Employee {
         this.role = role;
     }
 
-    public boolean isActive() {
+    public Boolean isActive() {
         return active;
     }
 
-    public void setActive(boolean active) {
+    public void setActive(Boolean active) {
         this.active = active;
     }
 
