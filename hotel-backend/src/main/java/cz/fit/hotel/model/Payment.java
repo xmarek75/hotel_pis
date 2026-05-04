@@ -24,14 +24,12 @@ public class Payment {
     @Column(nullable = false)
     private PaymentMethod method;
 
-    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @ManyToOne(optional = false, fetch = FetchType.EAGER)
     @JoinColumn(name = "reservation_id", nullable = false)
-    @JsonbTransient
     private Reservation reservation;
 
-    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @ManyToOne(optional = false, fetch = FetchType.EAGER)
     @JoinColumn(name = "employee_id", nullable = false)
-    @JsonbTransient
     private Employee employee;
 
     public Payment() {
