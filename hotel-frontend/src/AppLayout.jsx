@@ -5,7 +5,7 @@ import { useAuth } from "./auth/AuthContext";
 export const AppLayout = () => {
   const navigate = useNavigate();
   const path = useLocation();
-  //const { logout } = useAuth();
+  
   const { logout, username, role } = useAuth();
   
   const title = useMemo(() => {

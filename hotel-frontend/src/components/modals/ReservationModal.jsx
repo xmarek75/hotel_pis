@@ -7,7 +7,7 @@ import { calculateAgeFromDate, enrichReservation, formatDate, formatDateTime, fo
 import { useDeleteReservation, useEditReservation, useEditReservationStatus, useReservations } from "../../queries/useReservations";
 import { useRooms } from "../../queries/useRooms";
 import { useCustomers } from "../../queries/useCustomers";
-import { useAuth } from "../../auth/AuthContext";// pro získání role uživatele a zobrazení některých informací pouze adminům
+import { useAuth } from "../../auth/AuthContext";
 import { useCreatePayment, useReservationPaymentSummary } from "../../queries/usePayment";
 import { RESERVATION_STATUSES } from "../../utils/dashboardConstants";
 
@@ -51,8 +51,7 @@ export default function ReservationModal({reservationId, onClose}) {
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
-  //payment state
-  // const [showPaymentForm, setShowPaymentForm] = useState(false);
+
   const [paymentForm, setPaymentForm] = useState({
     method: "CARD",
     amount: "",
@@ -249,7 +248,7 @@ export default function ReservationModal({reservationId, onClose}) {
                    <div className="reservation-detail-item">
                     <strong>{selectedReservation.status ?? "-"}</strong>
                   </div>
-                  {/* jen zobrazeni stavu, nelze menit, kvuli backend validaci */}
+                 
                 </label>
                 <fieldset className="reservation-customer-box reservation-form-grid__full">
                   <legend>Platba</legend>

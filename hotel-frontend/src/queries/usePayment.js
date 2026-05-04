@@ -69,9 +69,7 @@ const deletePayment = async ({ authHeader, id }) => {
 
   return true;
 };
-///////////////////////////////////////////////////////////////////
-/////                     Hooks
-///////////////////////////////////////////////////////////////////
+
 
 export const useCreatePayment = () => {
   const { authHeader } = useAuth();

@@ -33,7 +33,7 @@ public class SystemAdminManager {
     }
 
     public Map<String, String> backupData() {
-        // Zatim jen placeholder use-case, aby bylo jasne kde jednou napojit skutecny backup proces.
+        
         Map<String, String> result = new LinkedHashMap<>();
         result.put("status", "OK");
         result.put("message", "Backup simulation endpoint - integrate real backup tooling here.");

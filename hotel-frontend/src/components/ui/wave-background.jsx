@@ -1,3 +1,4 @@
+// Adapted from React Bits Waves: https://reactbits.dev/backgrounds/waves
 import React, { useEffect, useRef } from "react";
 
 function mulberry32(seed) {
