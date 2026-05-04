@@ -90,6 +90,10 @@ public class DemoDataSeeder {
         e2.setPassword(passwordHasher.hash("admin123"));
         employeeRepository.save(e2);
 
+        Employee e3 = new Employee("Manažer", "manager", "+420777333555", EmployeeRole.MANAGER);
+        e3.setPassword(passwordHasher.hash("manager123"));
+        employeeRepository.save(e3);
+
         ExtraService breakfast = new ExtraService("Breakfast", new BigDecimal("12.00"), "Breakfast buffet");
         extraServiceRepository.save(breakfast);
 

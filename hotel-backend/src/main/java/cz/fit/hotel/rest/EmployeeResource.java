@@ -16,7 +16,6 @@ import java.util.List;
 @Path("/employees")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
-@RolesAllowed({"administrator"})
 @Tag(name = "Employees", description = "User management for hotel staff (Admin only)")
 public class EmployeeResource {
 
@@ -37,6 +36,7 @@ public class EmployeeResource {
 
     @POST
     @Operation(summary = "Register new employee", description = "Creates a new staff account with hashed password and assigned role.")
+    @RolesAllowed({"administrator"})
     public Employee create(EmployeeUpsertRequest request) {
         Employee employee = toEmployee(request, false);
         return employeeManager.create(employee);
@@ -44,6 +44,7 @@ public class EmployeeResource {
 
     @PUT
     @Path("/{id}")
+    @RolesAllowed({"administrator"})
     @Operation(summary = "Update employee", description = "Updates staff details. Password is only updated if provided in the request.")
     public Employee update(@PathParam("id") Long id, EmployeeUpsertRequest request) {
         Employee employee = toEmployee(request, true);
@@ -52,6 +53,7 @@ public class EmployeeResource {
 
     @DELETE
     @Path("/{id}")
+    @RolesAllowed({"administrator"})
     @Operation(summary = "Deactivate employee", description = "Soft-deletes an employee by setting their status to inactive.")
     public void deactivate(@PathParam("id") Long id) {
         employeeManager.delete(id);
