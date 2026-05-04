@@ -13,6 +13,8 @@ import { RESERVATION_STATUSES } from "../../utils/dashboardConstants";
 
 
 export default function ReservationModal({reservationId, onClose}) {
+  const { username } = useAuth();
+  
   const { data: reservation, isLoading } = useReservations({
     select: (reservations) => reservations.find((r) => r.id === reservationId),
   });
@@ -22,45 +24,74 @@ export default function ReservationModal({reservationId, onClose}) {
   const { data: employees } = useEmployees();
   const { data: services } = useServices();
 
-  const { mutate, isPending, error: mutationError } = useEditReservation();
-  const { mutate: deleteReservation, isPending: deleteIsPending, error: deleteMutationError } = useDeleteReservation();
-  const { mutate: editStatus, isPending: statusIsPending, error: statusMutationError } = useEditReservationStatus();
+  const {
+    data: paymentSummary,
+    isLoading: paymentSummaryIsLoading
+  } = useReservationPaymentSummary(reservationId);
 
+  const { mutate, isPending, error: mutationError, reset: resetEdit } = useEditReservation();
+  const { mutate: deleteReservation, isPending: deleteIsPending, error: deleteMutationError, reset: resetDelete } = useDeleteReservation();
+  const { mutate: editStatus, isPending: statusIsPending, error: statusMutationError, reset: resetStatus } = useEditReservationStatus();
+  const { mutate: createPayment, isPending: paymentIsPending, error: paymentMutationError, reset: resetPayment } = useCreatePayment();
+  
   const [editMode, setEditMode] = useState(false);
-   
+
+  const [form, setForm] = useState({
+    id: reservation?.id ?? "",
+    checkInDate: reservation?.checkInDate ?? "",
+    checkOutDate: reservation?.checkOutDate ?? "",
+    roomCapacity: reservation?.roomCapacity ?? 50,
+    numberOfGuests: reservation?.numberOfGuests ?? 2,
+    status: reservation?.status ?? "PENDING",
+    paymentStatus: reservation?.paymentStatus ?? "UNPAID",
+    specialRequests: reservation?.specialRequests ?? "",
+    serviceItems: mapReservationServiceItems(reservation?.serviceItems ?? []),
+  });
+
+  const [successMessage, setSuccessMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+
+  //payment state
+  // const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [paymentForm, setPaymentForm] = useState({
+    method: "CARD",
+    amount: "",
+  });
+
+  const currentEmployee = useMemo(
+    () => employees?.find((employee) => employee.username === username),
+    [employees, username]
+  );
+
   const selectedReservation = useMemo(() => {
     if (!reservation || !rooms || !customers || !employees || !services) return reservation;
     return enrichReservation(reservation, rooms, customers, employees, services);
   }, [reservation, rooms, customers, employees, services]);
 
-  const [form, setForm] = useState(() => {
-    return {
-      id: reservation.id ?? "",
-      checkInDate: reservation.checkInDate ?? "",
-      checkOutDate: reservation.checkOutDate ?? "",
-      roomCapacity: reservation.roomCapacity ?? 50,
-      numberOfGuests: reservation.numberOfGuests ?? 2,
-      status: reservation.status ?? "PENDING",
-      paymentStatus: reservation.paymentStatus ?? "UNPAID",
-      specialRequests: reservation.specialRequests ?? "",
-      serviceItems: mapReservationServiceItems(reservation.serviceItems),
-    };
-  });
-  const [successMessage, setSuccessMessage] = useState("");
-  const [errorMessage, setErrorMessage] = useState("");
+  const activeError = useMemo(() => {
+    if (errorMessage) return errorMessage;
+    if (editMode) {
+      return mutationError?.message || paymentMutationError?.message;
+    }
+    return statusMutationError?.message || deleteMutationError?.message;
+  }, [errorMessage, editMode, mutationError, paymentMutationError, statusMutationError, deleteMutationError]);
+
+  const clearMessages = () => {
+    setSuccessMessage("");
+    setErrorMessage("");
+    resetEdit();
+    resetDelete();
+    resetStatus();
+    resetPayment();
+  };
 
   const updateForm = (field, value) => {
     setForm((prev) => ({
       ...prev,
       [field]: value
     }));
+    clearMessages();
   };
-
-  const {
-    data: paymentSummary,
-    isLoading: paymentSummaryIsLoading,
-    error: paymentSummaryError,
-  } = useReservationPaymentSummary(reservationId);
 
   function toggleReservationService(serviceId, enabled) {
     setForm((prev) => {
@@ -94,8 +125,15 @@ export default function ReservationModal({reservationId, onClose}) {
       ),
     }));
   }
-  const { status, paymentStatus, roomCapacity, ...reservationForm } = form;
+
   const handleSubmit = () => {
+    const { status: _, paymentStatus: __, roomCapacity: ___, ...reservationForm } = form;
+    
+    if (!form.checkInDate || !form.checkOutDate) {
+      setErrorMessage("Datum začátku a konce musí být vyplněno.");
+      return;
+    }
+
     const payload = { 
       ...reservationForm,
       serviceItems: normalizeServiceSelections(form.serviceItems).map((item) => ({
@@ -104,17 +142,15 @@ export default function ReservationModal({reservationId, onClose}) {
       })),
     };
 
-    setSuccessMessage("");
-    setErrorMessage("");
-
+    clearMessages();
     mutate(payload, {
-      onSuccess: () => {
-        setSuccessMessage("Rezervace byla úspěšně uložena.");
-      }
+      onSuccess: () => setSuccessMessage("Rezervace byla úspěšně uložena.")
     });
   }
 
   const handleStatusSubmit = () => {
+    clearMessages();
+    
     if (form.status === "CHECKED_IN") {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -132,6 +168,7 @@ export default function ReservationModal({reservationId, onClose}) {
         return;
       }
     }
+
     editStatus({
       id: reservationId, 
       status: form.status, 
@@ -142,28 +179,19 @@ export default function ReservationModal({reservationId, onClose}) {
     });
   }
 
-  //payment state
-  const [showPaymentForm, setShowPaymentForm] = useState(false);
-  const [paymentForm, setPaymentForm] = useState({
-    method: "CARD",
-    amount: "",
-  });
-
   function updatePaymentForm(field, value) {
     setPaymentForm((prev) => ({ ...prev, [field]: value }));
   }
-  const { username } = useAuth();
-  const currentEmployee = useMemo(
-    () => employees?.find((employee) => employee.username === username),
-    [employees, username]
-  );
-  const {
-    mutate: createPayment,
-    isPending: paymentIsPending,
-    error: paymentMutationError,
-  } = useCreatePayment();
 
   function handlePaymentSubmit() {
+
+    clearMessages();
+
+    if (isNaN(Number(paymentForm.amount)) || Number(paymentForm.amount) <= 0) {
+      setErrorMessage("Platba musí být validní nezáporné číslo.");
+      return;      
+    }
+
     createPayment(
       {
         reservationId,
@@ -174,13 +202,11 @@ export default function ReservationModal({reservationId, onClose}) {
       {
         onSuccess: () => {
           setSuccessMessage("Platba byla úspěšně přidána.");
-          setShowPaymentForm(false);
           setPaymentForm({ method: "CARD", amount: "" });
         },
       }
     );
   }
-
 
   return createPortal((
     <BaseModal title={`Detail rezervace ${reservation.id}`} onClose={onClose}>
@@ -193,7 +219,7 @@ export default function ReservationModal({reservationId, onClose}) {
             <>
               <div className="reservation-form-grid">
                 <label>
-                  <span>Začátek rezervace</span>
+                  <span>Začátek rezervace*</span>
                   <input
                     type="date"
                     value={form.checkInDate}
@@ -201,7 +227,7 @@ export default function ReservationModal({reservationId, onClose}) {
                   />
                 </label>
                 <label>
-                  <span>Konec rezervace</span>
+                  <span>Konec rezervace*</span>
                   <input
                     type="date"
                     value={form.checkOutDate}
@@ -209,7 +235,7 @@ export default function ReservationModal({reservationId, onClose}) {
                   />
                 </label>
                 <label>
-                  <span>Počet hostů</span>
+                  <span>Počet hostů*</span>
                   <input
                     type="number"
                     min={1}
@@ -220,16 +246,6 @@ export default function ReservationModal({reservationId, onClose}) {
                 </label>
                 <label>
                   <span>Stav rezervace</span>
-                  {/* <select
-                    value={form.status}
-                    onChange={(e) => updateForm("status", e.target.value)}
-                  >
-                    {RESERVATION_STATUSES.map((statusValue) => (
-                      <option key={statusValue} value={statusValue}>
-                        {statusValue}
-                      </option>
-                    ))}
-                  </select> */}
                    <div className="reservation-detail-item">
                     <strong>{selectedReservation.status ?? "-"}</strong>
                   </div>
@@ -264,12 +280,13 @@ export default function ReservationModal({reservationId, onClose}) {
                         type="number"
                         min="0.5"
                         step="0.5"
+                        placeholder="0.00"
                         value={paymentForm.amount}
                         onChange={(e) => updatePaymentForm("amount", e.target.value)}
                       />
                     </label>
                     <div className="reservation-actions reservation-form-grid__full">
-                      <button type="button" onClick={handlePaymentSubmit}>
+                      <button type="button" disabled={paymentIsPending} onClick={handlePaymentSubmit}>
                         Uložit platbu
                       </button>
                     </div>
@@ -320,19 +337,9 @@ export default function ReservationModal({reservationId, onClose}) {
               </div>
   
               {/* error message */}
-              {mutationError && (
+              {activeError && (
                 <p className="status status--error">
-                  {mutationError.message}
-                </p>
-              )}
-              {paymentMutationError && (
-                <p className="status status--error">
-                  {paymentMutationError.message}
-                </p>
-              )}
-              {errorMessage && (
-                <p className="status status--error">
-                  {errorMessage}
+                  {activeError}
                 </p>
               )}
 
@@ -349,7 +356,7 @@ export default function ReservationModal({reservationId, onClose}) {
                   type="button"
                   onClick={() => {
                     setEditMode(false);
-                    setSuccessMessage("");
+                    clearMessages();
                   }}
                 >
                   Zpět
@@ -516,23 +523,12 @@ export default function ReservationModal({reservationId, onClose}) {
               </div>
   
               {/* error message */}
-              {statusMutationError && (
+              {activeError && (
                 <p className="status status--error">
-                  {statusMutationError.message}
+                  {activeError}
                 </p>
               )}
 
-              {/* error message */}
-              {deleteMutationError && (
-                <p className="status status--error">
-                  {deleteMutationError.message}
-                </p>
-              )}
-              {errorMessage && (
-                <p className="status status--error">
-                  {errorMessage}
-                </p>
-              )}
 
               {/* success message */}
               {successMessage && (
@@ -550,7 +546,7 @@ export default function ReservationModal({reservationId, onClose}) {
                   type="button"
                   onClick={() => {
                     setEditMode(true);
-                    setSuccessMessage("");
+                    clearMessages();
                   }}
                 >
                   Upravit
