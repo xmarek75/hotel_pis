@@ -9,6 +9,7 @@ import { AppLayout } from "./AppLayout";
 import RoomPage from "./pages/RoomPage";
 import ServicePage from "./pages/ServicePage";
 import CustomerPage from "./pages/CustomerPage";
+import EmployeePage from "./pages/EmployeePage";
 
 const queryClient = new QueryClient();
 
@@ -27,6 +28,7 @@ export default function App() {
                   <Route path="/rooms" element={<RoomPage />} />
                   <Route path="/services" element={<ServicePage />} />
                   <Route path="/customers" element={<CustomerPage />} />
+                  <Route path="/employees" element={<EmployeePage />} />
                 </Route>
             </Route>
             {/* <Route path="*" element={<Navigate to="/dashboard" replace />} /> */}
