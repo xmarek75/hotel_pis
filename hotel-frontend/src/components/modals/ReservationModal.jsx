@@ -220,7 +220,7 @@ export default function ReservationModal({reservationId, onClose}) {
                 </label>
                 <label>
                   <span>Stav rezervace</span>
-                  <select
+                  {/* <select
                     value={form.status}
                     onChange={(e) => updateForm("status", e.target.value)}
                   >
@@ -229,7 +229,11 @@ export default function ReservationModal({reservationId, onClose}) {
                         {statusValue}
                       </option>
                     ))}
-                  </select>
+                  </select> */}
+                   <div className="reservation-detail-item">
+                    <strong>{selectedReservation.status ?? "-"}</strong>
+                  </div>
+                  {/* jen zobrazeni stavu, nelze menit, kvuli backend validaci */}
                 </label>
                 <label>
                   <span>Stav platby</span>

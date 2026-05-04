@@ -56,16 +56,17 @@ const editReservation = async ({ authHeader, payload }) => {
 };
 
 const editReservationStatus = async ({ authHeader, id, status }) => {
-  const url = `${API_BASE}/reservations/${id}`;
+  //const url = `${API_BASE}/reservations/${id}`;
+  const url = `${API_BASE}/reservations/${id}/status?value=${status}`;
   
   const res = await fetch(url, {
     method: "PUT",
     headers: { 
       Authorization: authHeader, 
-      "Content-Type": "application/json",
+      //"Content-Type": "application/json",
       Accept: "application/json" 
     },
-    body: JSON.stringify({status})
+    //body: JSON.stringify({status})
   });
 
   if (!res.ok) {
