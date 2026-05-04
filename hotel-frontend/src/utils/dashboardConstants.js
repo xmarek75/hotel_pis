@@ -7,7 +7,7 @@ export const RANGE_OPTIONS = {
   month: { label: "Měsíční", days: 30 },
 };
 
-export const RESERVATION_STATUSES = ["PENDING", "CONFIRMED", "CHECKED_IN", "CHECKED_OUT", "CANCELED"];
+export const RESERVATION_STATUSES = ["PENDING", "CHECKED_IN", "CHECKED_OUT", "CANCELED"];
 export const PAYMENT_STATUSES = ["UNPAID", "PARTIALLY_PAID", "PAID", "REFUNDED"];
 
 export const RESERVATION_SORT_FIELDS = [
