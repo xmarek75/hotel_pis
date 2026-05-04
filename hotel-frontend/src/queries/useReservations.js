@@ -55,7 +55,7 @@ const editReservation = async ({ authHeader, payload }) => {
   return res.json();
 };
 
-const editReservationStatus = async ({ authHeader, id, status, paymentStatus }) => {
+const editReservationStatus = async ({ authHeader, id, status }) => {
   const url = `${API_BASE}/reservations/${id}`;
   
   const res = await fetch(url, {
@@ -65,7 +65,7 @@ const editReservationStatus = async ({ authHeader, id, status, paymentStatus }) 
       "Content-Type": "application/json",
       Accept: "application/json" 
     },
-    body: JSON.stringify({status, paymentStatus})
+    body: JSON.stringify({status})
   });
 
   if (!res.ok) {
@@ -133,7 +133,7 @@ export const useEditReservationStatus = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({id, status, paymentStatus}) => editReservationStatus({ authHeader, id, status, paymentStatus }),
+    mutationFn: ({id, status}) => editReservationStatus({ authHeader, id, status }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["reservations"] });
     },
