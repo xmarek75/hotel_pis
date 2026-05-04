@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { useDeleteService, useServices } from "../queries/useServices";
-import { formatMoney } from "../components/dashboard/dashboardUtils";
+import { formatMoney } from "../utils/dashboardUtils";
 import { useDeleteRoomAmenity, useRoomAmenities } from "../queries/useRooms";
 import ServiceModal from "../components/modals/ServiceModal";
 import RoomAmenityModal from "../components/modals/RoomAmenityModal";

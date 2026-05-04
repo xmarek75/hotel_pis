@@ -1,39 +1,67 @@
-import React from "react";
+import { useMemo, useState } from "react";
+import { DAYS_TO_SHOW, RANGE_OPTIONS } from "../utils/dashboardConstants";
+import { useAuth } from "../auth/AuthContext";
+import { addDays, formatDayLabel, formatIsoDay, formatMonthLabel, formatRangeLabel, getCellOccupancy, getRoomServiceIds, startOfDay } from "../utils/dashboardUtils";
+import { useRoomAmenities, useRooms } from "../queries/useRooms";
+import { useReservations } from "../queries/useReservations";
+import DashboardModal from "../components/modals/DashboardModal";
 
-export default function OccupancySection({
-  RANGE_OPTIONS,
-  occupancyRange,
-  setOccupancyRange,
-  username,
-  occupancySettingsOpen,
-  setOccupancySettingsOpen,
-  occupancyCapacityMode,
-  setOccupancyCapacityMode,
-  occupancyCapacityValue,
-  setOccupancyCapacityValue,
-  occupancyAmenityIds,
-  setOccupancyAmenityIds,
-  roomAmenities,
-  filteredOccupancyRooms,
-  rooms,
-  goPrevWeek,
-  goPrevDay,
-  formatIsoDay,
-  weekStart,
-  onWeekDateChange,
-  goNextDay,
-  goNextWeek,
-  rangeHeadline,
-  loading,
-  error,
-  weekDays,
-  formatMonthLabel,
-  formatDayLabel,
-  reservations,
-  getCellOccupancy,
-  openCreateReservation,
-  openReservationDetail,
-}) {
+export default function DashboardPage() {
+  const { username } = useAuth();
+
+  const { data: rooms, isLoading, error } = useRooms();
+  const { data: reservations } = useReservations();
+  const { data: roomAmenities } = useRoomAmenities();
+
+  const [occupancyRange, setOccupancyRange] = useState("week");
+  const [occupancySettingsOpen, setOccupancySettingsOpen] = useState(false);
+  const [occupancyCapacityMode, setOccupancyCapacityMode] = useState("all");
+  const [occupancyCapacityValue, setOccupancyCapacityValue] = useState("4");
+  const [weekStart, setWeekStart] = useState(() => startOfDay(new Date()));
+  const [occupancyAmenityIds, setOccupancyAmenityIds] = useState([]);
+
+  const [activeModal, setActiveModal] = useState({ type: null, data: null });
+  
+  const openModal = (type, data = null) => setActiveModal({ type, data });
+  const closeModal = () => setActiveModal({ type: null, data: null });
+
+  const weekDays = useMemo(() => {
+    const count = RANGE_OPTIONS[occupancyRange]?.days ?? DAYS_TO_SHOW;
+    return Array.from({ length: count }, (_, index) => addDays(weekStart, index));
+  }, [occupancyRange, weekStart]);
+
+  const weekRangeLabel = useMemo(
+    () => formatRangeLabel(weekDays[0], weekDays[weekDays.length - 1]),
+    [weekDays]
+  );
+
+  const rangeHeadline = useMemo(() => {
+    if (occupancyRange === "month") return `Zobrazené dny: ${weekRangeLabel}`;
+    if (occupancyRange === "tenDays") return `Zobrazených 10 dní: ${weekRangeLabel}`;
+    return `Zobrazený týden: ${weekRangeLabel}`;
+  }, [occupancyRange, weekRangeLabel]);
+
+  function goPrevWeek() {
+    setWeekStart((prev) => addDays(prev, -7));
+  }
+
+  function goNextWeek() {
+    setWeekStart((prev) => addDays(prev, 7));
+  }
+
+  function goPrevDay() {
+    setWeekStart((prev) => addDays(prev, -1));
+  }
+
+  function goNextDay() {
+    setWeekStart((prev) => addDays(prev, 1));
+  }
+
+  function onWeekDateChange(e) {
+    if (!e.target.value) return;
+    setWeekStart(startOfDay(new Date(e.target.value)));
+  }
+
   function toggleAmenity(serviceId, enabled) {
     const normalizedId = String(serviceId);
     const current = Array.isArray(occupancyAmenityIds) ? occupancyAmenityIds.map(String) : [];
@@ -47,6 +75,38 @@ export default function OccupancySection({
       setOccupancyAmenityIds(current.filter((id) => id !== normalizedId));
     }
   }
+
+  const filteredOccupancyRooms = useMemo(() => {
+    if (!rooms) return [];
+    return rooms.filter((room) => {
+      if (occupancyCapacityMode !== "all") {
+        const capacity = Number(room.capacity ?? 0);
+        const limit = Number(occupancyCapacityValue);
+        if (!Number.isFinite(capacity) || capacity <= 0) return false;
+        if (!Number.isFinite(limit) || limit <= 0) {
+          return true;
+        }
+        if (occupancyCapacityMode === "exact" && capacity !== limit) {
+          return false;
+        }
+        if (occupancyCapacityMode === "min" && capacity < limit) {
+          return false;
+        }
+      }
+
+      if (occupancyAmenityIds.length > 0) {
+        const roomServiceIds = getRoomServiceIds(room);
+        const hasAllSelectedAmenities = occupancyAmenityIds.every((amenityId) =>
+          roomServiceIds.includes(String(amenityId))
+        );
+        if (!hasAllSelectedAmenities) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [rooms, occupancyCapacityMode, occupancyCapacityValue, occupancyAmenityIds]);
 
   return (
     <section className="panel panel--wide">
@@ -171,25 +231,27 @@ export default function OccupancySection({
         </div>
       </div>
       <p className="week-range">{rangeHeadline}</p>
-      {occupancyCapacityMode !== "all" ? (
+      
+      {occupancyCapacityMode !== "all" && (
         <p className="occupancy-note">
           Filtr pokojů: {occupancyCapacityMode === "exact" ? "kapacita přesně" : "kapacita minimálně"}{" "}
           {Number(occupancyCapacityValue) > 0 ? occupancyCapacityValue : "-"}.
         </p>
-      ) : null}
-      {occupancyAmenityIds.length > 0 ? (
+      )}
+      
+      {occupancyAmenityIds.length > 0 && (
         <p className="occupancy-note">
           Filtr vybavení: {roomAmenities
             .filter((service) => occupancyAmenityIds.map(String).includes(String(service.id)))
             .map((service) => service.name)
             .join(", ")}.
         </p>
-      ) : null}
+      )}
 
-      {loading ? <p className="panel__text">Načítám pokoje...</p> : null}
-      {error ? <p className="status status--error">{error}</p> : null}
+      {isLoading && <p className="panel__text">Načítám pokoje...</p>}
+      {error && <p className="status status--error">{error.message}</p>}
 
-      {!loading && !error ? (
+      {(!isLoading && !error && rooms) && (
         <>
           <div className={`occupancy-wrap ${occupancyRange === "month" ? "is-month" : ""}`}>
             <table className={`occupancy-table ${occupancyRange === "month" ? "occupancy-table--month" : ""}`}>
@@ -224,7 +286,7 @@ export default function OccupancySection({
                       <th scope="row">č.{room.number}</th>
                       <td>{room.capacity ?? "-"}</td>
                       {weekDays.map((day) => {
-                        const { state, reservation } = getCellOccupancy(room, day, reservations);
+                        const { state, reservation } = getCellOccupancy(room, day, reservations ?? []);
                         const openCreateFromCell = state === "free" || state === "departure";
                         const compactLabel = occupancyRange === "month";
                         const cellClass =
@@ -275,19 +337,19 @@ export default function OccupancySection({
                             tabIndex={0}
                             onClick={
                               openCreateFromCell
-                                ? () => openCreateReservation(room, day)
-                                : () => openReservationDetail(reservation)
+                                ? () => openModal("CREATE", {room, day})
+                                : () => openModal("DETAIL", {reservation})
                             }
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === " ") {
-                                e.preventDefault();
-                                if (openCreateFromCell) {
-                                  openCreateReservation(room, day);
-                                } else {
-                                  openReservationDetail(reservation);
-                                }
-                              }
-                            }}
+                            // onKeyDown={(e) => {
+                            //   if (e.key === "Enter" || e.key === " ") {
+                            //     e.preventDefault();
+                            //     if (openCreateFromCell) {
+                            //       openCreateReservation(room, day);
+                            //     } else {
+                            //       openReservationDetail(reservation);
+                            //     }
+                            //   }
+                            // }}
                           >
                             {cellLabel}
                           </td>
@@ -322,8 +384,19 @@ export default function OccupancySection({
               Výměna
             </span>
           </div>
+
+          {activeModal.type === 'CREATE' && (
+            <DashboardModal
+              onClose={closeModal}
+              createSlot={{
+                room: activeModal.data.room, 
+                day: activeModal.data.day, 
+                startDateIso: formatIsoDay(activeModal.data.day)
+              }}
+            />
+          )}
         </>
-      ) : null}
+      )}
     </section>
   );
 }

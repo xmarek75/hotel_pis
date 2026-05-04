@@ -2,7 +2,7 @@ import { useState } from "react";
 import BaseModal from "./BaseModal";
 import { createPortal } from "react-dom";
 import { useEmployees, useUpsertEmployee } from "../../queries/useEmployees";
-import { EMPLOYEE_ROLES } from "../dashboard/dashboardConstants";
+import { EMPLOYEE_ROLES } from "../../utils/dashboardConstants";
 
 // FIXME: change password modal
 

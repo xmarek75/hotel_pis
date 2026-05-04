@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useReservations } from "../queries/useReservations";
-import { enrichReservation, formatDate, formatMoney, parseLocalDate } from "../components/dashboard/dashboardUtils";
-import { PAYMENT_STATUSES, RESERVATION_SORT_FIELDS, RESERVATION_STATUSES, RESERVATIONS_PAGE_SIZE } from "../components/dashboard/dashboardConstants";
+import { enrichReservation, formatDate, formatMoney, parseLocalDate } from "../utils/dashboardUtils";
+import { PAYMENT_STATUSES, RESERVATION_SORT_FIELDS, RESERVATION_STATUSES, RESERVATIONS_PAGE_SIZE } from "../utils/dashboardConstants";
 import { useRooms } from "../queries/useRooms";
 import { useCustomers } from "../queries/useCustomers";
 import { useEmployees } from "../queries/useEmployees";
@@ -36,7 +36,7 @@ export default function ReservationPage() {
 
   const hydratedReservations = useMemo(
     () => {
-      if (!reservations) return [];
+      if (!reservations || !rooms || !customers || !employees || !services) return [];
       return reservations.map((reservation) => enrichReservation(reservation, rooms, customers, employees, services))
     },
     [reservations, rooms, customers, employees, services]

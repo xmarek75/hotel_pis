@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
-import { calculateAgeFromDate, formatDate } from "../components/dashboard/dashboardUtils";
+import { calculateAgeFromDate, formatDate } from "../utils/dashboardUtils";
 import ServiceModal from "../components/modals/ServiceModal";
 import RoomAmenityModal from "../components/modals/RoomAmenityModal";
 import { useCustomers, useDeleteCustomer } from "../queries/useCustomers";
