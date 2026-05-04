@@ -32,7 +32,7 @@ export default function CustomerPage() {
               Přidat zákazníka
             </button>
           ) : (
-            <span className="rooms-admin__note">Správu zákazníků má dostupnou admin nebo recepce.</span>
+            <span className="rooms-admin__note">Správu zákazníků má dostupnou admin nebo manažer.</span>
           )}
         </div>
 
