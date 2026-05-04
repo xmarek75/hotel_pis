@@ -5,6 +5,7 @@ import { addDays, formatDayLabel, formatIsoDay, formatMonthLabel, formatRangeLab
 import { useRoomAmenities, useRooms } from "../queries/useRooms";
 import { useReservations } from "../queries/useReservations";
 import DashboardModal from "../components/modals/DashboardModal";
+import ReservationModal from "../components/modals/ReservationModal";
 
 export default function DashboardPage() {
   const { username } = useAuth();
@@ -393,6 +394,13 @@ export default function DashboardPage() {
                 day: activeModal.data.day, 
                 startDateIso: formatIsoDay(activeModal.data.day)
               }}
+            />
+          )}
+
+          {activeModal.type === 'DETAIL' && (
+            <ReservationModal
+              onClose={closeModal}
+              reservationId={activeModal.data.reservation.id}              
             />
           )}
         </>

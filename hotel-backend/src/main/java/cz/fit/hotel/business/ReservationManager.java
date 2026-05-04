@@ -167,6 +167,17 @@ public class ReservationManager {
         reservationRepository.update(reservation);
     }
 
+    public List<Payment> getPaymentsByReservationId(Long id) {
+        return paymentRepository.findByReservationId(id);
+    }
+
+    public cz.fit.hotel.rest.ReservationResource.PaymentSummary getPaymentSummary(Long id) {
+        Reservation reservation = requireReservation(id);
+        BigDecimal totalPaid = paymentRepository.getTotalPaidForReservation(id);
+        BigDecimal totalCost = calculateTotalPrice(reservation);
+        return new cz.fit.hotel.rest.ReservationResource.PaymentSummary(totalCost, totalPaid);
+    }
+
     private void validateDates(Reservation reservation) {
         if (reservation.getCheckInDate() == null || reservation.getCheckOutDate() == null) {
             throw new IllegalArgumentException("Check-in and check-out dates are required");

@@ -26,7 +26,7 @@ import java.util.Set;
 @Path("/reservations")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
-@RolesAllowed({"administrator", "RECEPTIONIST", "MANAGER"})
+@RolesAllowed({ "administrator", "RECEPTIONIST", "MANAGER" })
 @Tag(name = "Reservations", description = "Core management of room bookings and guest stays")
 public class ReservationResource {
 
@@ -93,6 +93,20 @@ public class ReservationResource {
         reservationManager.delete(id);
     }
 
+    @GET
+    @Path("/{id}/payments")
+    @Operation(summary = "Get reservation payments", description = "Retrieves all payment transactions associated with this booking.")
+    public List<cz.fit.hotel.model.Payment> getPayments(@PathParam("id") Long id) {
+        return reservationManager.getPaymentsByReservationId(id);
+    }
+
+    @GET
+    @Path("/{id}/payment-summary")
+    @Operation(summary = "Get payment summary", description = "Calculates total cost, amount paid, and remaining balance for the reservation.")
+    public PaymentSummary getPaymentSummary(@PathParam("id") Long id) {
+        return reservationManager.getPaymentSummary(id);
+    }
+
     private Reservation toReservation(ReservationRequest request) {
         if (request == null) {
             throw new BadRequestException("Reservation payload is required");
@@ -151,6 +165,19 @@ public class ReservationResource {
             }
         }
         return null;
+    }
+
+    // DTO for payments Count()
+    public static class PaymentSummary {
+        public java.math.BigDecimal totalCost;
+        public java.math.BigDecimal amountPaid;
+        public java.math.BigDecimal remainingAmount;
+
+        public PaymentSummary(java.math.BigDecimal totalCost, java.math.BigDecimal amountPaid) {
+            this.totalCost = totalCost;
+            this.amountPaid = amountPaid;
+            this.remainingAmount = totalCost.subtract(amountPaid);
+        }
     }
 
     public static class ReservationRequest {

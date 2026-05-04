@@ -30,7 +30,7 @@ export default function ReservationModal({reservationId, onClose}) {
   const [editMode, setEditMode] = useState(false);
    
   const selectedReservation = useMemo(() => {
-    if (!reservation) return reservation;
+    if (!reservation || !rooms || !customers || !employees || !services) return reservation;
     return enrichReservation(reservation, rooms, customers, employees, services);
   }, [reservation, rooms, customers, employees, services]);
 
