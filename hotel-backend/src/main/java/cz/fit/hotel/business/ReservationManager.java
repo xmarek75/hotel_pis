@@ -7,6 +7,7 @@ import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
@@ -79,6 +80,25 @@ public class ReservationManager {
         Reservation reservation = reservationRepository.findById(id);
         if (reservation == null) {
             throw new IllegalArgumentException("Reservation not found");
+        }
+
+        LocalDate today = LocalDate.now();
+
+        // Check if status is changing to CHECKED_IN
+        if (status == ReservationStatus.CHECKED_IN) {
+            if (today.isBefore(reservation.getCheckInDate())) {
+                throw new IllegalArgumentException("Cannot check-in before the scheduled date: " + reservation.getCheckInDate());
+            }
+        }
+
+        // Check if status is changing to CHECKED_OUT
+        if (status == ReservationStatus.CHECKED_OUT) {
+            if (reservation.getPaymentStatus() != PaymentStatus.PAID) {
+                throw new IllegalArgumentException("Cannot check-out. All payments must be completed (Status: PAID). Current: " + reservation.getPaymentStatus());
+            }
+            if (today.isBefore(reservation.getCheckOutDate())) {
+                throw new IllegalArgumentException("Cannot check-out before the scheduled date: " + reservation.getCheckOutDate());
+            }
         }
         
         ReservationStatus oldStatus = reservation.getStatus();
