@@ -548,7 +548,7 @@
 }
 
 .dashboard-topbar {
-  width: 100%;
+  width: 110%;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;

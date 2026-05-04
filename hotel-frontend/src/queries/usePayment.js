@@ -37,6 +37,22 @@ const getReservationPaymentSummary = async ({ authHeader, reservationId }) => {
   return res.json();
 };
 
+const getPayments = async (authHeader) => {
+  const res = await fetch(`${API_BASE}/payments`, {
+    headers: {
+      Authorization: authHeader,
+      Accept: "application/json",
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Načtení plateb selhalo (${res.status})`);
+  }
+
+  const data = await res.json();
+  return data ? data : [];
+};
+
 export const useCreatePayment = () => {
   const { authHeader } = useAuth();
   const queryClient = useQueryClient();
@@ -46,6 +62,7 @@ export const useCreatePayment = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["reservations"] });
       queryClient.invalidateQueries({ queryKey: ["reservation-payment-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["payments"] });
     },
   });
 };
@@ -59,4 +76,16 @@ export const useReservationPaymentSummary = (reservationId) => {
     enabled: !!authHeader && !!reservationId,
   });
 };
+
+export const usePayments = (options = {}) => {
+  const { authHeader } = useAuth();
+
+  return useQuery({
+    queryKey: ["payments"],
+    queryFn: () => getPayments(authHeader),
+    enabled: !!authHeader,
+    ...options,
+  });
+};
+
 
