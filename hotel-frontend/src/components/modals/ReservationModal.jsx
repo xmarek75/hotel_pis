@@ -2,12 +2,15 @@ import { useMemo, useState } from "react";
 import BaseModal from "./BaseModal";
 import { createPortal } from "react-dom";
 import { useEmployees } from "../../queries/useEmployees";
-import { PAYMENT_STATUSES, RESERVATION_STATUSES } from "../../utils/dashboardConstants";
 import { useServices } from "../../queries/useServices";
-import { calculateAgeFromDate, enrichReservation, formatDate, formatDateTime, formatMoney, normalizeServiceSelections } from "../../utils/dashboardUtils";
+import { calculateAgeFromDate, enrichReservation, formatDate, formatDateTime, formatMoney, normalizeServiceSelections, mapReservationServiceItems } from "../../utils/dashboardUtils";
 import { useDeleteReservation, useEditReservation, useEditReservationStatus, useReservations } from "../../queries/useReservations";
 import { useRooms } from "../../queries/useRooms";
 import { useCustomers } from "../../queries/useCustomers";
+
+import { useAuth } from "../../auth/AuthContext";// pro získání role uživatele a zobrazení některých informací pouze adminům
+import { useCreatePayment, useReservationPaymentSummary } from "../../queries/usePayment";
+
 
 export default function ReservationModal({reservationId, onClose}) {
   const { data: reservation, isLoading } = useReservations({
@@ -40,7 +43,7 @@ export default function ReservationModal({reservationId, onClose}) {
       status: reservation.status ?? "PENDING",
       paymentStatus: reservation.paymentStatus ?? "UNPAID",
       specialRequests: reservation.specialRequests ?? "",
-      serviceItems: reservation.serviceItems ?? [],
+      serviceItems: mapReservationServiceItems(reservation.serviceItems),
     };
   });
   const [successMessage, setSuccessMessage] = useState("");
@@ -51,6 +54,12 @@ export default function ReservationModal({reservationId, onClose}) {
       [field]: value
     }));
   };
+
+  const {
+    data: paymentSummary,
+    isLoading: paymentSummaryIsLoading,
+    error: paymentSummaryError,
+  } = useReservationPaymentSummary(reservationId);
 
   function toggleReservationService(serviceId, enabled) {
     setForm((prev) => {
@@ -88,6 +97,10 @@ export default function ReservationModal({reservationId, onClose}) {
   const handleSubmit = () => {
     const payload = { 
       ...form,
+      serviceItems: normalizeServiceSelections(form.serviceItems).map((item) => ({
+        serviceId: Number(item.serviceId),
+        quantity: Number(item.quantity),
+      })),
     };
 
     setSuccessMessage("");
@@ -103,13 +116,52 @@ export default function ReservationModal({reservationId, onClose}) {
     editStatus({
       id: reservationId, 
       status: form.status, 
-      paymentStatus: form.paymentStatus
     }, {
       onSuccess: () => {
         setSuccessMessage("Stavy rezervace byly úspěšně uloženy.");
       }
     });
   }
+
+  //payment state
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [paymentForm, setPaymentForm] = useState({
+    method: "CARD",
+    amount: "",
+  });
+
+  function updatePaymentForm(field, value) {
+    setPaymentForm((prev) => ({ ...prev, [field]: value }));
+  }
+  const { username } = useAuth();
+  const currentEmployee = useMemo(
+    () => employees?.find((employee) => employee.username === username),
+    [employees, username]
+  );
+  const {
+    mutate: createPayment,
+    isPending: paymentIsPending,
+    error: paymentMutationError,
+  } = useCreatePayment();
+
+  function handlePaymentSubmit() {
+    createPayment(
+      {
+        reservationId,
+        amount: Number(paymentForm.amount),
+        method: paymentForm.method,
+        employeeId: currentEmployee?.id,
+      },
+      {
+        onSuccess: () => {
+          setSuccessMessage("Platba byla úspěšně přidána.");
+          setShowPaymentForm(false);
+          setPaymentForm({ method: "CARD", amount: "" });
+        },
+      }
+    );
+  }
+
 
   return createPortal((
     <BaseModal title={`Detail rezervace ${reservation.id}`} onClose={onClose}>
@@ -162,16 +214,31 @@ export default function ReservationModal({reservationId, onClose}) {
                 </label>
                 <label>
                   <span>Stav platby</span>
+                  <div className="reservation-detail-item">
+                      <strong>{selectedReservation.paymentStatus ?? "-"}</strong>
+                    
+                  </div>
+                  {/* ///////// */}
                   <select
-                    value={form.paymentStatus}
-                    onChange={(e) => updateForm("paymentStatus", e.target.value)}
+                    value={paymentForm.method}
+                    onChange={(e) => updatePaymentForm("method", e.target.value)}
                   >
-                    {PAYMENT_STATUSES.map((statusValue) => (
-                      <option key={statusValue} value={statusValue}>
-                        {statusValue}
-                      </option>
-                    ))}
+                    <option value="CARD">Karta</option>
+                    <option value="CASH">Hotově</option>
                   </select>
+
+                  <input
+                    type="number"
+                    min="0.5"
+                    step="0.5"
+                    value={paymentForm.amount}
+                    onChange={(e) => updatePaymentForm("amount", e.target.value)}
+                  />
+
+                  <button type="button" onClick={handlePaymentSubmit}>
+                    Uložit platbu
+                  </button>
+                  {/* ///////// */}
                 </label>
                 <label className="reservation-form-grid__full">
                   <span>Speciální požadavky</span>
@@ -204,7 +271,7 @@ export default function ReservationModal({reservationId, onClose}) {
                             </span>
                             <input
                               type="number"
-                              min={1}
+                              min={0}
                               value={selectedItem?.quantity ?? 1}
                               disabled={!selectedItem}
                               onChange={(e) => updateReservationServiceQuantity(service.id, e.target.value)}
@@ -221,6 +288,11 @@ export default function ReservationModal({reservationId, onClose}) {
               {mutationError && (
                 <p className="status status--error">
                   {mutationError.message}
+                </p>
+              )}
+              {paymentMutationError && (
+                <p className="status status--error">
+                  {paymentMutationError.message}
                 </p>
               )}
 
@@ -295,20 +367,22 @@ export default function ReservationModal({reservationId, onClose}) {
                   <div className="reservation-detail-grid">
                     <div className="reservation-detail-item">
                       <span className="reservation-detail-item__label">Stav platby</span>
-                      <select
-                        value={form.paymentStatus}
-                        onChange={(e) => updateForm("paymentStatus", e.target.value)}
-                      >
-                        {PAYMENT_STATUSES.map((statusValue) => (
-                          <option key={statusValue} value={statusValue}>
-                            {statusValue}
-                          </option>
-                        ))}
-                      </select>
+                      <span>{selectedReservation.paymentStatus ?? "-"}</span>
                     </div>
+
+                    <div className="reservation-detail-item">
+                      <span className="reservation-detail-item__label">Zaplaceno</span>
+                      <span>{paymentSummaryIsLoading ? "Načítání..." : formatMoney(paymentSummary?.amountPaid)}</span>
+                    </div>
+
                     <div className="reservation-detail-item">
                       <span className="reservation-detail-item__label">Cena celkem</span>
                       <span>{formatMoney(selectedReservation.totalPrice)}</span>
+                    </div>
+
+                    <div className="reservation-detail-item">
+                      <span className="reservation-detail-item__label">Zbývá doplatit</span>
+                      <span>{paymentSummaryIsLoading ? "Načítání..." : formatMoney(paymentSummary?.remainingAmount)}</span>
                     </div>
                   </div>
                 </section>
