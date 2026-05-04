@@ -11,7 +11,8 @@ import { useRooms } from "../../queries/useRooms";
 import { useCustomers } from "../../queries/useCustomers";
 
 import { useAuth } from "../../auth/AuthContext";// pro získání role uživatele a zobrazení některých informací pouze adminům
-import { useCreatePayment } from "../../queries/usePayment";
+import { useCreatePayment, useReservationPaymentSummary } from "../../queries/usePayment";
+
 
 export default function ReservationModal({reservationId, onClose}) {
   const { data: reservation, isLoading } = useReservations({
@@ -55,6 +56,12 @@ export default function ReservationModal({reservationId, onClose}) {
       [field]: value
     }));
   };
+
+  const {
+    data: paymentSummary,
+    isLoading: paymentSummaryIsLoading,
+    error: paymentSummaryError,
+  } = useReservationPaymentSummary(reservationId);
 
   function toggleReservationService(serviceId, enabled) {
     setForm((prev) => {
@@ -262,7 +269,7 @@ export default function ReservationModal({reservationId, onClose}) {
                             </span>
                             <input
                               type="number"
-                              min={1}
+                              min={0}
                               value={selectedItem?.quantity ?? 1}
                               disabled={!selectedItem}
                               onChange={(e) => updateReservationServiceQuantity(service.id, e.target.value)}
@@ -279,6 +286,11 @@ export default function ReservationModal({reservationId, onClose}) {
               {mutationError && (
                 <p className="status status--error">
                   {mutationError.message}
+                </p>
+              )}
+              {paymentMutationError && (
+                <p className="status status--error">
+                  {paymentMutationError.message}
                 </p>
               )}
 
@@ -355,10 +367,21 @@ export default function ReservationModal({reservationId, onClose}) {
                       <span className="reservation-detail-item__label">Stav platby</span>
                       <span>{selectedReservation.paymentStatus ?? "-"}</span>
                     </div>
-                  </div>
-                  <div className="reservation-detail-item">
-                    <span className="reservation-detail-item__label">Cena celkem</span>
-                    <span>{formatMoney(selectedReservation.totalPrice)}</span>
+
+                    <div className="reservation-detail-item">
+                      <span className="reservation-detail-item__label">Zaplaceno</span>
+                      <span>{paymentSummaryIsLoading ? "Načítání..." : formatMoney(paymentSummary?.amountPaid)}</span>
+                    </div>
+
+                    <div className="reservation-detail-item">
+                      <span className="reservation-detail-item__label">Cena celkem</span>
+                      <span>{formatMoney(selectedReservation.totalPrice)}</span>
+                    </div>
+
+                    <div className="reservation-detail-item">
+                      <span className="reservation-detail-item__label">Zbývá doplatit</span>
+                      <span>{paymentSummaryIsLoading ? "Načítání..." : formatMoney(paymentSummary?.remainingAmount)}</span>
+                    </div>
                   </div>
                 </section>
   
