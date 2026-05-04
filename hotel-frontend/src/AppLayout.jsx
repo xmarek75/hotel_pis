@@ -15,6 +15,7 @@ export const AppLayout = () => {
       case "/services": return "Správa služeb";
       case "/customers": return "Správa zákazníků";
       case "/employees": return "Správa zaměstnanců";
+      case "/audit-logs": return "Historie změn rezervací";
       default: return "Dashboard - obsazenost";
     }
   }, [path]);
@@ -89,6 +90,15 @@ export const AppLayout = () => {
               >
                 Správa zaměstnanců
               </button>
+              {role?.toUpperCase() === "ADMINISTRATOR" && (
+              <button
+                className={`dashboard-nav__item ${path.pathname === "/audit-logs" ? "is-active" : ""}`}
+                type="button"
+                onClick={() => navigate("/audit-logs")}
+              >
+                Historie změn
+              </button>
+              )}
             </nav>
           </div>
         </header>
