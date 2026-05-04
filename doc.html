@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <title>Projekt PIS</title>
+    <style type="text/css">
+    	table { border-collapse: collapse; }
+    	td, th { border: 1px solid black; padding: 0.3em 0.5em; text-align: left; }
+    	dt { font-weight: bold; margin-top: 0.5em; }
+    </style>
+</head>
+<body>
+
+<!-- Nahraďte prosím názvem tématu -->
+<h1>Hotel</h1>
+
+<!-- Editujte jména a maily autorů a jejich činnost -->
+<dl>
+	<dt>Autoři</dt>
+	<dd>Tímea Adamčíková
+	    <a href="mailto:xadamc09@stud.fit.vutbr.cz">xadamc09@stud.fit.vutbr.cz</a> -
+		databázový model a repozitáre
+	</dd>
+	<dd>Jan Kapsa
+	    <a href="mailto:xkapsa00@stud.fit.vutbr.cz">xkapsa00@stud.fit.vutbr.cz</a> - 
+		business logika a end-pointy
+	</dd>
+	<dd>Pavel Marek
+	    <a href="mailto:xmarek75@stud.fit.vutbr.cz">xmarek75@stud.fit.vutbr.cz</a> - 
+		frontend, príprava štruktúry projektu a konfiguračných súborov
+	</dd>
+	<dd>Maksim Samusevich
+	    <a href="mailto:xsamus00@stud.fit.vutbr.cz">xsamus00@stud.fit.vutbr.cz</a> - 
+		vedúci tímu, business logika a end-pointy
+	</dd>
+	<dd>Rebeka Tydorová
+	    <a href="mailto:xtydor01@stud.fit.vutbr.cz">xtydor01@stud.fit.vutbr.cz</a> -
+		databázový model a repozitáre
+	</dd>
+</dl>
+
+<!-- uživatelské účty -->
+<h2>Uživatelé systému pro testování</h2>
+<p>Uveďte prosím existující zástupce <strong>všech rolí uživatelů</strong>.</p>
+<table>
+<tbody><tr><th>Login</th><th>Heslo</th><th>Role</th></tr>
+<tr><td>admin</td><td>admin123</td><td>Administrátor</td></tr>
+<tr><td>reception</td><td>reception123</td><td>Recepčný</td></tr>
+<tr><td>manager</td><td>manager123</td><td>Manažér</td></tr>
+</tbody></table>
+
+<h2>Postup instalace</h2>
+<p><strong>Požadované nástroje:</strong></p>
+<ul>
+  <li>Docker + Docker Compose</li>
+  <li>Java 17</li>
+  <li>Maven 3.9+</li>
+  <li>Node.js 20.19+</li>
+</ul>
+
+<p><strong>Spustenie databáze:</strong></p>
+<ul>
+  <li><code>docker compose up -d</code> v root adresári projektu</li>
+  <li>Backend pri spustení automaticky vkladá demo dáta, ak chýbajú</li>
+</ul>
+
+<p><strong>Spustenie backendu:</strong></p>
+<ul>
+  <li><code>mvn liberty:dev</code> v priečinku hotel-backend</li>
+  <li>Backend pobeží <a href="http://localhost:9080/hotel">tu</a></li>
+</ul>
+
+<p><strong>Spustenie frontendu:</strong></p>
+<ul>
+  <li><code>cd hotel-frontend</code></li>
+  <li><code>npm install</code></li>
+  <li><code>npm run dev</code></li>
+  <li>Frontend typicky beží <a href="http://localhost:5173">tu</a></li>
+</ul>
+
+</body></html>
