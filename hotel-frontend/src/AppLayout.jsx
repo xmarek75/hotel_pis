@@ -14,7 +14,7 @@ export const AppLayout = () => {
       case "/services": return "Správa služeb";
       case "/customers": return "Správa zákazníků";
       case "/employees": return "Správa zaměstnanců";
-      default: return "Dashboard-obsazenost";
+      default: return "Dashboard - obsazenost";
     }
   }, [path]);
 

@@ -13,6 +13,27 @@ const getReservations = async (authHeader) => {
   return data ? data : [];
 };
 
+const createReservation = async ({authHeader, payload}) => {
+  const url = `${API_BASE}/reservations`;
+  
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { 
+      Authorization: authHeader, 
+      "Content-Type": "application/json",
+      Accept: "application/json" 
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!res.ok) {
+    const errorData = await res.text().catch(() => ({}));
+    throw new Error(errorData || `Vytvoření se nezdařilo (${res.status})`);
+  }
+
+  return res.json();
+};
+
 const editReservation = async ({ authHeader, payload }) => {
   const url = `${API_BASE}/reservations/${payload.id}`;
   
@@ -80,6 +101,18 @@ export const useReservations = (options = {}) => {
     queryFn: () => getReservations(authHeader),
     enabled: !!authHeader,
     ...options,
+  });
+};
+
+export const useCreateReservation = () => {
+  const { authHeader } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload) => createReservation({ authHeader, payload }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["reservations"] });
+    },
   });
 };
 
