@@ -8,6 +8,7 @@ import LoginPage from "./pages/LoginPage";
 import { AppLayout } from "./AppLayout";
 import RoomPage from "./pages/RoomPage";
 import ServicePage from "./pages/ServicePage";
+import CustomerPage from "./pages/CustomerPage";
 
 const queryClient = new QueryClient();
 
@@ -25,6 +26,7 @@ export default function App() {
                   {/* <Route path="/reservations" element={<Dashboard />} /> */}
                   <Route path="/rooms" element={<RoomPage />} />
                   <Route path="/services" element={<ServicePage />} />
+                  <Route path="/customers" element={<CustomerPage />} />
                 </Route>
             </Route>
             {/* <Route path="*" element={<Navigate to="/dashboard" replace />} /> */}
