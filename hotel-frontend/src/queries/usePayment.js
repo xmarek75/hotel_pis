@@ -53,6 +53,26 @@ const getPayments = async (authHeader) => {
   return data ? data : [];
 };
 
+const deletePayment = async ({ authHeader, id }) => {
+  const res = await fetch(`${API_BASE}/payments/${id}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: authHeader,
+      Accept: "application/json",
+    },
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text().catch(() => "");
+    throw new Error(errorText || `Vrácení platby selhalo (${res.status})`);
+  }
+
+  return true;
+};
+///////////////////////////////////////////////////////////////////
+/////                     Hooks
+///////////////////////////////////////////////////////////////////
+
 export const useCreatePayment = () => {
   const { authHeader } = useAuth();
   const queryClient = useQueryClient();
@@ -88,4 +108,16 @@ export const usePayments = (options = {}) => {
   });
 };
 
+export const useDeletePayment = () => {
+  const { authHeader } = useAuth();
+  const queryClient = useQueryClient();
 
+  return useMutation({
+    mutationFn: (id) => deletePayment({ authHeader, id }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["payments"] });
+      queryClient.invalidateQueries({ queryKey: ["reservations"] });
+      queryClient.invalidateQueries({ queryKey: ["reservation-payment-summary"] });
+    },
+  });
+};
