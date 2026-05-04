@@ -46,6 +46,7 @@ export default function RoomPage() {
                   <th>Kapacita</th>
                   <th>Cena / noc</th>
                   <th>Vybavení</th>
+                  <th>Stav</th>
                   <th aria-label="Úprava pokoje" />
                 </tr>
               </thead>
@@ -57,6 +58,10 @@ export default function RoomPage() {
                     <td>{room.capacity}</td>
                     <td>{formatMoney(room.pricePerNight)}</td>
                     <td>{formatRoomServices(room)}</td>
+                    <td>
+                      {room.active !== false ? (<span>Aktivní</span>)
+                          : (<span>Neaktivní</span>)}
+                    </td>
                     <td>
                       <button
                         className="btn btn--secondary btn--compact"

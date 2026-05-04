@@ -10,9 +10,7 @@ const getRooms = async (authHeader) => {
   if (!res.ok) throw new Error(`Načtení pokojů selhalo (${res.status})`);
   const data = await res.json();
 
-  return Array.isArray(data)
-    ? data.filter((room) => room.active !== false)
-    : [];
+  return Array.isArray(data) ? data : [];
 }
 
 const getRoomAmenities = async (authHeader) => {

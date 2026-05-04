@@ -105,4 +105,19 @@ public class ReservationRepository {
                 .setParameter("to", to)
                 .getResultList();
     }
+
+    public boolean hasUpcomingReservations(Long roomId, LocalDate today) {
+        Long count = em.createQuery(
+                        "select count(r) from Reservation r " +
+                                "where r.room.id = :roomId " +
+                                "and r.status <> cz.fit.hotel.model.ReservationStatus.CANCELED " +
+                                "and r.checkOutDate >= :today",
+                        Long.class
+                )
+                .setParameter("roomId", roomId)
+                .setParameter("today", today)
+                .getSingleResult();
+
+        return count != null && count > 0;
+    }
 }
