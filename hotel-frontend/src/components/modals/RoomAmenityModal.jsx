@@ -63,7 +63,7 @@ export default function RoomAmenityModal({ amenityId, onClose }) {
         <>
           <div className="reservation-form-grid">
             <label>
-              <span>Název vybavení pokoje</span>
+              <span>Název vybavení pokoje*</span>
               <input 
                 placeholder="Např. Klimatizace nebo Wi-Fi"
                 value={form.name} 

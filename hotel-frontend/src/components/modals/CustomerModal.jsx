@@ -78,7 +78,7 @@ export default function CustomerModal({ customerId, onClose }) {
         <>
           <div className="reservation-form-grid">
             <label>
-              <span>Jméno</span>
+              <span>Jméno*</span>
               <input 
                 placeholder="Jan Novák"
                 value={form.name} 
@@ -86,7 +86,7 @@ export default function CustomerModal({ customerId, onClose }) {
               />
             </label>
             <label>
-              <span>Datum narození</span>
+              <span>Datum narození*</span>
               <input
                 type="date"
                 value={form.dateOfBirth}
@@ -103,7 +103,7 @@ export default function CustomerModal({ customerId, onClose }) {
               />
             </label>
             <label>
-              <span>Telefon</span>
+              <span>Telefon*</span>
               <input 
                 placeholder="+420..."
                 value={form.phone} 

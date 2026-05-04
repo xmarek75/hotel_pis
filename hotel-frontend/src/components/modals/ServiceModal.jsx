@@ -71,7 +71,7 @@ export default function ServiceModal({ serviceId, onClose }) {
         <>
           <div className="reservation-form-grid">
             <label>
-              <span>Název služby</span>
+              <span>Název služby*</span>
               <input 
                 placeholder="Např. Masáž lávovými kameny"
                 value={form.name} 
@@ -79,7 +79,7 @@ export default function ServiceModal({ serviceId, onClose }) {
               />
             </label>
             <label>
-              <span>Cena</span>
+              <span>Cena*</span>
               <input
                 type="number"
                 min={0}
