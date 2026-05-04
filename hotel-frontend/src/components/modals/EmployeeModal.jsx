@@ -1,7 +1,7 @@
 import { useState } from "react";
 import BaseModal from "./BaseModal";
 import { createPortal } from "react-dom";
-import { useEmployees, useUpsertEmployee } from "../../queries/useEmployees";
+import { useEmployees, useUpsertEmployee, useDeleteEmployee } from "../../queries/useEmployees";
 import { EMPLOYEE_ROLES } from "../../utils/dashboardConstants";
 
 export default function EmployeeModal({ employeeId, onClose }) {
@@ -9,7 +9,23 @@ export default function EmployeeModal({ employeeId, onClose }) {
     select: (employees) => employees.find((e) => e.id === employeeId),
   });
 
-  const { mutate, isPending, error: mutationError } = useUpsertEmployee();
+  const {
+    mutate,
+    isPending,
+    error: mutationError,
+  } = useUpsertEmployee();
+  
+  const {
+    mutate: toggleEmployeeActive,
+    isPending: activeIsPending,
+    error: activeMutationError,
+  } = useUpsertEmployee();
+
+  const {
+    mutate: deactivateEmployee,
+    isPending: deactivateIsPending,
+    error: deactivateMutationError,
+  } = useDeleteEmployee();
 
   const [changePassword, setChangePassword] = useState(!employeeId);
 
@@ -19,6 +35,7 @@ export default function EmployeeModal({ employeeId, onClose }) {
     username: employee?.username ?? "",
     contact: employee?.contact ?? "",
     role: employee?.role ?? "RECEPTIONIST",
+    active: employee?.active ?? true,
     password: "",
     passwordConfirm: ""
   });
@@ -83,6 +100,39 @@ export default function EmployeeModal({ employeeId, onClose }) {
         }
       }
     });
+  };
+  const handleToggleActive = () => {
+    setValidationError("");
+    setSuccessMessage("");
+
+    if (!employeeId) return;
+
+    if (employee?.active) {
+      deactivateEmployee(employeeId, {
+        onSuccess: () => {
+          updateForm("active", false);
+          setSuccessMessage("Zaměstnanec byl deaktivován.");
+        },
+      });
+      return;
+    }
+
+    toggleEmployeeActive(
+      {
+        id: employeeId,
+        name: employee.name,
+        username: employee.username,
+        contact: employee.contact,
+        role: employee.role,
+        active: true,
+      },
+      {
+        onSuccess: () => {
+          updateForm("active", true);
+          setSuccessMessage("Zaměstnanec byl aktivován.");
+        },
+      }
+    );
   };
 
   const inputErrorStyle = { borderColor: "red" };
@@ -172,9 +222,13 @@ export default function EmployeeModal({ employeeId, onClose }) {
             </div>
           </div>
 
-          {(mutationError || validationError || showPasswordError) && (
+          {(mutationError || activeMutationError || deactivateMutationError || validationError || showPasswordError) && (
             <p className="status status--error">
-              {validationError || mutationError?.message || (showPasswordError && "Hesla se neshodují")}
+              {validationError
+                || mutationError?.message
+                || activeMutationError?.message
+                || deactivateMutationError?.message
+                || (showPasswordError && "Hesla se neshodují")}
             </p>
           )}
 
@@ -186,6 +240,16 @@ export default function EmployeeModal({ employeeId, onClose }) {
             <button className="btn btn--secondary" type="button" onClick={onClose}>
               Zrušit
             </button>
+            {employeeId && (
+              <button
+                className={employee?.active ? "btn btn--danger" : "btn btn--secondary"}
+                type="button"
+                disabled={activeIsPending || deactivateIsPending}
+                onClick={handleToggleActive}
+              >
+                {employee?.active ? "Deaktivovat" : "Aktivovat"}
+              </button>
+            )}
             <button 
               className="btn btn--primary" 
               type="button" 

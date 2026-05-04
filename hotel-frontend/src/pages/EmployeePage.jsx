@@ -65,7 +65,7 @@ export default function EmployeePage() {
                       <td>{employee.contact ?? "-"}</td>
                       <td>{employee.active === false ? "Neaktivní" : "Aktivní"}</td>
                       <td>
-                        {employee.active === true && (
+                        
                           <div className="row-actions">
                             <button
                               className="btn btn--secondary btn--compact"
@@ -84,7 +84,7 @@ export default function EmployeePage() {
                               Smazat
                             </button>
                           </div>
-                        )}
+                        
                       </td>
                     </tr>
                   ))
