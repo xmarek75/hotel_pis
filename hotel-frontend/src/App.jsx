@@ -10,6 +10,7 @@ import RoomPage from "./pages/RoomPage";
 import ServicePage from "./pages/ServicePage";
 import CustomerPage from "./pages/CustomerPage";
 import EmployeePage from "./pages/EmployeePage";
+import ReservationPage from "./pages/ReservationsPage";
 
 const queryClient = new QueryClient();
 
@@ -24,7 +25,7 @@ export default function App() {
             <Route element={<ProtectedRoute />}>
                 <Route element={<AppLayout />}>
                   {/* <Route path="/dashboard" element={<Dashboard />} /> */}
-                  {/* <Route path="/reservations" element={<Dashboard />} /> */}
+                  <Route path="/reservations" element={<ReservationPage />} />
                   <Route path="/rooms" element={<RoomPage />} />
                   <Route path="/services" element={<ServicePage />} />
                   <Route path="/customers" element={<CustomerPage />} />
