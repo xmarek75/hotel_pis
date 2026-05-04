@@ -280,6 +280,7 @@ export default function ReservationModal({reservationId, onClose}) {
                         type="number"
                         min="0.5"
                         step="0.5"
+                        placeholder="0.00"
                         value={paymentForm.amount}
                         onChange={(e) => updatePaymentForm("amount", e.target.value)}
                       />
