@@ -48,8 +48,8 @@ const upsertRoom = async ({ authHeader, payload }) => {
   });
 
   if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.message || `Uložení se nezdařilo (${res.status})`);
+    const errorData = await res.text().catch(() => ({}));
+    throw new Error(errorData || `Uložení se nezdařilo (${res.status})`);
   }
 
   return res.json();
