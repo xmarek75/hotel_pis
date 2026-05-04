@@ -3,26 +3,23 @@ import BaseModal from "./BaseModal";
 import { createPortal } from "react-dom";
 import { useCustomers, useUpsertCustomer } from "../../queries/useCustomers";
 
-export default function CustomerModal({customerId, onClose}) {
+export default function CustomerModal({ customerId, onClose }) {
   const { data: customer, isLoading } = useCustomers({
-      select: (services) => services.find((s) => s.id === customerId),
-    });
+    select: (customers) => customers.find((c) => c.id === customerId),
+  });
 
   const { mutate, isPending, error: mutationError } = useUpsertCustomer();
 
-  const [form, setForm] = useState(() => {
-    if (customer) {
-      return {
-        id: customer.id ?? "",
-        name: customer.name ?? "",
-        dateOfBirth: customer.dateOfBirth ?? "",
-        email: customer.email ?? "",
-        phone: customer.phone ?? "",
-      };
-    }
-    return { id: "", name: "", dateOfBirth: "", email: "", phone: "" };
+  const [form, setForm] = useState({
+    id: customer?.id ?? "",
+    name: customer?.name ?? "",
+    dateOfBirth: customer?.dateOfBirth ?? "",
+    email: customer?.email ?? "",
+    phone: customer?.phone ?? "",
   });
+
   const [successMessage, setSuccessMessage] = useState("");
+  const [validationError, setValidationError] = useState("");
 
   const updateForm = (field, value) => {
     setForm((prev) => ({
@@ -31,80 +28,114 @@ export default function CustomerModal({customerId, onClose}) {
     }));
   };
 
-  const handleSubmit = () => {
-    const payload = { 
-      ...form, 
-      id: customerId || form.id,
-    };
-
+  const handleInputChange = (field, value) => {
+    updateForm(field, value);
+    setValidationError("");
     setSuccessMessage("");
+  };
+
+  const handleSubmit = () => {
+    if (!form.name.trim()) {
+      setValidationError("Jméno nesmí být prázdné.");
+      return;
+    }
+
+    if (!form.dateOfBirth) {
+      setValidationError("Datum narození je povinné.");
+      return;
+    }
+
+    if (!form.phone.trim()) {
+      setValidationError("Telefon je povinný.");
+      return;
+    }
+
+    const payload = {
+      ...((customerId || form.id) && { id: customerId || form.id }),
+      name: form.name,
+      phone: form.phone,
+      dateOfBirth: form.dateOfBirth,
+      ...(form.email && { email: form.email })
+    };
 
     mutate(payload, {
       onSuccess: (data) => {
-        setSuccessMessage(form?.id ? "Zákazník byl úspěšně uložen." : "Zákazník byl úspěšně vytvořen.");
+        const msg = form?.id ? "Zákazník byl úspěšně uložen." : "Zákazník byl úspěšně vytvořen.";
+        setSuccessMessage(msg);
         
         if (!customerId && data?.id) {
           updateForm("id", data.id);
         }
       }
     });
-  }
+  };
 
   return createPortal((
-    <BaseModal title={customerId ? "Upravit zákazníka": "Přidat zákazníka"} onClose={onClose}>
+    <BaseModal title={customerId ? "Upravit zákazníka" : "Přidat zákazníka"} onClose={onClose}>
       {isLoading ? (
         <p>Načítání...</p>
       ) : (
         <>
-          {/* customer form */}
           <div className="reservation-form-grid">
-          <label>
-            <span>Jméno</span>
-            <input value={form.name} onChange={(e) => updateForm("name", e.target.value)} />
-          </label>
-          <label>
-            <span>Datum narození</span>
-            <input
-              type="date"
-              value={form.dateOfBirth}
-              onChange={(e) => updateForm("dateOfBirth", e.target.value)}
-            />
-          </label>
-          <label>
-            <span>E-mail</span>
-            <input
-              type="email"
-              value={form.email}
-              onChange={(e) => updateForm("email", e.target.value)}
-            />
-          </label>
-          <label>
-            <span>Telefon</span>
-            <input value={form.phone} onChange={(e) => updateForm("phone", e.target.value)} />
-          </label>
-        </div>
+            <label>
+              <span>Jméno</span>
+              <input 
+                placeholder="Jan Novák"
+                value={form.name} 
+                onChange={(e) => handleInputChange("name", e.target.value)} 
+              />
+            </label>
+            <label>
+              <span>Datum narození</span>
+              <input
+                type="date"
+                value={form.dateOfBirth}
+                onChange={(e) => handleInputChange("dateOfBirth", e.target.value)}
+              />
+            </label>
+            <label>
+              <span>E-mail</span>
+              <input
+                type="email"
+                placeholder="email@domena.cz"
+                value={form.email}
+                onChange={(e) => handleInputChange("email", e.target.value)}
+              />
+            </label>
+            <label>
+              <span>Telefon</span>
+              <input 
+                placeholder="+420..."
+                value={form.phone} 
+                onChange={(e) => handleInputChange("phone", e.target.value)} 
+              />
+            </label>
+          </div>
 
-          {/* error message */}
-          {mutationError && (
+          {/* Zobrazení chyb (validace nebo server) */}
+          {(mutationError || validationError) && (
             <p className="status status--error">
-              {mutationError.message}
+              {validationError || mutationError?.message}
             </p>
           )}
 
-          {/* success message */}
           {successMessage && (
             <p className="status status--success">
               {successMessage}
             </p>
           )}
 
-          {/* action buttons */}          
           <div className="reservation-actions">
             <button className="btn btn--secondary" type="button" onClick={onClose}>
               Zrušit
             </button>
-            <button className="btn btn--primary" type="button" disable={isPending} onClick={handleSubmit}>
-              {form?.id ? "Uložit zákazníka" : "Vytvořit zákazníka"}              
+            <button 
+              className="btn btn--primary" 
+              type="button" 
+              disabled={isPending} 
+              onClick={handleSubmit}
+            >
+              {form?.id ? "Uložit zákazníka" : "Vytvořit zákazníka"}
             </button>
           </div>
         </>
