@@ -251,35 +251,46 @@ export default function ReservationModal({reservationId, onClose}) {
                   </div>
                   {/* jen zobrazeni stavu, nelze menit, kvuli backend validaci */}
                 </label>
-                <label>
-                  <span>Stav platby</span>
-                  <div className="reservation-detail-item">
+                <fieldset className="reservation-customer-box reservation-form-grid__full">
+                  <legend>Platba</legend>
+                  <div className="reservation-detail-grid">
+                    <div className="reservation-detail-item">
+                      <span className="reservation-detail-item__label">Stav platby</span>
                       <strong>{selectedReservation.paymentStatus ?? "-"}</strong>
-                    
+                    </div>
+                    <div className="reservation-detail-item">
+                      <span className="reservation-detail-item__label">Zbývá doplatit</span>
+                      <strong>{paymentSummaryIsLoading ? "Načítání..." : formatMoney(paymentSummary?.remainingAmount)}</strong>
+                    </div>
                   </div>
-                  {/* ///////// */}
-                  <select
-                    value={paymentForm.method}
-                    onChange={(e) => updatePaymentForm("method", e.target.value)}
-                  >
-                    <option value="CARD">Karta</option>
-                    <option value="CASH">Hotově</option>
-                  </select>
-
-                  <input
-                    type="number"
-                    placeholder="0.00"
-                    min="0.5"
-                    step="0.5"
-                    value={paymentForm.amount}
-                    onChange={(e) => updatePaymentForm("amount", e.target.value)}
-                  />
-
-                  <button type="button" disabled={paymentIsPending} onClick={handlePaymentSubmit}>
-                    Uložit platbu
-                  </button>
-                  {/* ///////// */}
-                </label>
+                  <div className="reservation-form-grid">
+                    <label>
+                      <span>Metoda</span>
+                      <select
+                        value={paymentForm.method}
+                        onChange={(e) => updatePaymentForm("method", e.target.value)}
+                      >
+                        <option value="CARD">Karta</option>
+                        <option value="CASH">Hotově</option>
+                      </select>
+                    </label>
+                    <label>
+                      <span>Částka</span>
+                      <input
+                        type="number"
+                        min="0.5"
+                        step="0.5"
+                        value={paymentForm.amount}
+                        onChange={(e) => updatePaymentForm("amount", e.target.value)}
+                      />
+                    </label>
+                    <div className="reservation-actions reservation-form-grid__full">
+                      <button type="button" onClick={handlePaymentSubmit}>
+                        Uložit platbu
+                      </button>
+                    </div>
+                  </div>
+                </fieldset>
                 <label className="reservation-form-grid__full">
                   <span>Speciální požadavky</span>
                   <textarea
