@@ -107,7 +107,7 @@ export default function RoomModal({roomId, onClose}) {
         <>
           <div className="reservation-form-grid">
             <label>
-              <span>Číslo pokoje</span>
+              <span>Číslo pokoje*</span>
               <input 
                 placeholder="Např. 101"
                 value={form.number} 
@@ -115,7 +115,7 @@ export default function RoomModal({roomId, onClose}) {
               />
             </label>
             <label>
-              <span>Typ pokoje</span>
+              <span>Typ pokoje*</span>
               {roomTypes.length > 0 ? (
                 <select
                   value={form.typeId}
@@ -141,7 +141,7 @@ export default function RoomModal({roomId, onClose}) {
               )}
             </label>
             <label>
-              <span>Kapacita</span>
+              <span>Kapacita*</span>
               <input
                 type="number"
                 min={1}
@@ -150,7 +150,7 @@ export default function RoomModal({roomId, onClose}) {
               />
             </label>
             <label>
-              <span>Cena za noc</span>
+              <span>Cena za noc*</span>
               <input
                 type="number"
                 min={0}

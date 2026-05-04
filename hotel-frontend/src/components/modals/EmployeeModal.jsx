@@ -151,7 +151,7 @@ export default function EmployeeModal({ employeeId, onClose }) {
         <>
           <div className="reservation-form-grid">
             <label>
-              <span>Jméno</span>
+              <span>Jméno*</span>
               <input 
                 placeholder="Zadejte celé jméno" 
                 value={form.name} 
@@ -159,7 +159,7 @@ export default function EmployeeModal({ employeeId, onClose }) {
               />
             </label>
             <label>
-              <span>Uživatelské jméno</span>
+              <span>Uživatelské jméno*</span>
               <input 
                 placeholder="Zadejte uživatelské jméno" 
                 value={form.username} 
@@ -175,7 +175,7 @@ export default function EmployeeModal({ employeeId, onClose }) {
               />
             </label>
             <label>
-              <span>Role</span>
+              <span>Role*</span>
               <select value={form.role} onChange={(e) => handleInputChange("role", e.target.value)}>
                 {EMPLOYEE_ROLES.map((role) => (
                   <option key={role.value} value={role.value}>{role.label}</option>
@@ -202,7 +202,7 @@ export default function EmployeeModal({ employeeId, onClose }) {
               {changePassword && (
                 <div className="reservation-form-grid" style={{ marginTop: employeeId ? "10px" : "0" }}>
                   <label>
-                    <span>Heslo</span>
+                    <span>Heslo*</span>
                     <input
                       type="password"
                       placeholder="••••••••"
@@ -213,7 +213,7 @@ export default function EmployeeModal({ employeeId, onClose }) {
                     />
                   </label>
                   <label>
-                    <span>Potvrzení hesla</span>
+                    <span>Potvrzení hesla*</span>
                     <input
                       type="password"
                       placeholder="••••••••"
