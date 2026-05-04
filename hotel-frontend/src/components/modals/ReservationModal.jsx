@@ -285,7 +285,7 @@ export default function ReservationModal({reservationId, onClose}) {
                       />
                     </label>
                     <div className="reservation-actions reservation-form-grid__full">
-                      <button type="button" onClick={handlePaymentSubmit}>
+                      <button type="button" disabled={paymentIsPending} onClick={handlePaymentSubmit}>
                         Uložit platbu
                       </button>
                     </div>
