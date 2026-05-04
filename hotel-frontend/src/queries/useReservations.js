@@ -124,6 +124,8 @@ export const useEditReservation = () => {
     mutationFn: (payload) => editReservation({ authHeader, payload }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["reservations"] });
+      queryClient.invalidateQueries({ queryKey: ["reservation-payment-summary"] });
+
     },
   });
 };

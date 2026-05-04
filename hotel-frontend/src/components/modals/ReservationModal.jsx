@@ -5,7 +5,7 @@ import { useEmployees } from "../../queries/useEmployees";
 //delete payment statuses 
 import { EMPLOYEE_ROLES, RESERVATION_STATUSES } from "../../utils/dashboardConstants";
 import { useServices } from "../../queries/useServices";
-import { calculateAgeFromDate, enrichReservation, formatDate, formatDateTime, formatMoney, normalizeServiceSelections } from "../../utils/dashboardUtils";
+import { calculateAgeFromDate, enrichReservation, formatDate, formatDateTime, formatMoney, normalizeServiceSelections, mapReservationServiceItems } from "../../utils/dashboardUtils";
 import { useDeleteReservation, useEditReservation, useEditReservationStatus, useReservations } from "../../queries/useReservations";
 import { useRooms } from "../../queries/useRooms";
 import { useCustomers } from "../../queries/useCustomers";
@@ -45,7 +45,7 @@ export default function ReservationModal({reservationId, onClose}) {
       status: reservation.status ?? "PENDING",
       paymentStatus: reservation.paymentStatus ?? "UNPAID",
       specialRequests: reservation.specialRequests ?? "",
-      serviceItems: reservation.serviceItems ?? [],
+      serviceItems: mapReservationServiceItems(reservation.serviceItems),
     };
   });
   const [successMessage, setSuccessMessage] = useState("");
@@ -99,6 +99,10 @@ export default function ReservationModal({reservationId, onClose}) {
   const handleSubmit = () => {
     const payload = { 
       ...form,
+      serviceItems: normalizeServiceSelections(form.serviceItems).map((item) => ({
+        serviceId: Number(item.serviceId),
+        quantity: Number(item.quantity),
+      })),
     };
 
     setSuccessMessage("");
