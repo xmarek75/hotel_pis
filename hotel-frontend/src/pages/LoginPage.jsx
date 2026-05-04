@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { Waves } from "../components/ui/wave-background";
+import { useQueryClient } from "@tanstack/react-query";
 
 const API_BASE = import.meta.env.DEV ? "/api" : "/hotel/api";
 
@@ -39,9 +40,10 @@ function StatusMessage({ status }) {
 }
 
 export default function LoginPage() {
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthed, login, session } = useAuth();
+  const { isAuthed, login } = useAuth();
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -54,12 +56,6 @@ export default function LoginPage() {
     () => username.trim().length > 0 && password.length > 0 && status.type !== "loading",
     [username, password, status.type]
   );
-
-  useEffect(() => {
-    if (session?.username) {
-      setUsername((prev) => prev || session.username);
-    }
-  }, [session?.username]);
 
   if (isAuthed) {
     return <Navigate to={redirectTo} replace />;
@@ -81,6 +77,7 @@ export default function LoginPage() {
       login({ username: auth.username ?? trimmedUsername, token: auth.token, role: auth.role });
       setStatus({ type: "success", message: "Přihlášení proběhlo úspěšně." });
       navigate(redirectTo, { replace: true });
+      queryClient.invalidateQueries();
     } catch (err) {
       setStatus({ type: "error", message: err.message || "Chyba přihlášení." });
     }
@@ -176,6 +173,13 @@ export default function LoginPage() {
               <button
                 className="btn btn--secondary btn--compact"
                 type="button"
+                onClick={() => applyDemoCredentials("manager", "manager123")}
+              >
+                Demo Manažer
+              </button>
+              <button
+                className="btn btn--secondary btn--compact"
+                type="button"
                 onClick={() => applyDemoCredentials("reception", "reception123")}
               >
                 Demo Recepce
@@ -247,6 +251,10 @@ export default function LoginPage() {
               <div>
                 <span className="credentials-hint__label">Admin</span>
                 <code>admin / admin123</code>
+              </div>
+              <div>
+                <span className="credentials-hint__label">Manažer</span>
+                <code>manager / manager123</code>
               </div>
               <div>
                 <span className="credentials-hint__label">Recepce</span>

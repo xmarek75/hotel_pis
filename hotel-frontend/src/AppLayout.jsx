@@ -51,7 +51,7 @@ export const AppLayout = () => {
               <button
                 className={`dashboard-nav__item ${path.pathname === "/dashboard" ? "is-active" : ""}`}
                 type="button"
-                onClick={() => navigate("/")}
+                onClick={() => navigate("/dashboard")}
               >
                 Dashboard
               </button>
