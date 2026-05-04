@@ -61,42 +61,42 @@ export const AppLayout = () => {
                 type="button"
                 onClick={() => navigate("/reservations")}
               >
-                Správa rezervací
+                Rezervace
               </button>
               <button
                 className={`dashboard-nav__item ${path.pathname === "/rooms" ? "is-active" : ""}`}
                 type="button"
                 onClick={() => navigate("/rooms")}
               >
-                Správa pokojů
+                Pokoje
               </button>
               <button
                 className={`dashboard-nav__item ${path.pathname === "/services" ? "is-active" : ""}`}
                 type="button"
                 onClick={() => navigate("/services")}
               >
-                Správa služeb
+                Služby
               </button>
               <button
                 className={`dashboard-nav__item ${path.pathname === "/customers" ? "is-active" : ""}`}
                 type="button"
                 onClick={() => navigate("/customers")}
               >
-                Správa zákazníků
+                Zákazníci
               </button>
               <button
                 className={`dashboard-nav__item ${path.pathname === "/payments" ? "is-active" : ""}`}
                 type="button"
                 onClick={() => navigate("/payments")}
               >
-                Správa plateb
+                Platby
               </button>
               <button
                 className={`dashboard-nav__item ${path.pathname === "/employees" ? "is-active" : ""}`}
                 type="button"
                 onClick={() => navigate("/employees")}
               >
-                Správa zaměstnanců
+                Zaměstnanci
               </button>
               {role?.toUpperCase() === "ADMINISTRATOR" && (
               <button
