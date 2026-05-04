@@ -46,6 +46,9 @@ public class DemoDataSeeder {
     PaymentManager paymentManager;
 
     @Inject
+    PaymentRepository paymentRepository;
+
+    @Inject
     PasswordHasher passwordHasher;
 
     @Transactional
@@ -166,6 +169,7 @@ public class DemoDataSeeder {
         seedAdditionalRooms();
         seedAdditionalCustomers();
         seedAdditionalReservations();
+        seedTodayCheckoutPartialPaymentReservation();
     }
 
     private void seedAdditionalRooms() {
@@ -313,6 +317,57 @@ public class DemoDataSeeder {
                 sequence++;
             }
         }
+    }
+
+    private void seedTodayCheckoutPartialPaymentReservation() {
+        final String marker = "[DEMO-TODAY-CHECKOUT-PARTIAL]";
+        boolean alreadySeeded = reservationRepository.findAll().stream()
+                .anyMatch(r -> r.getSpecialRequests() != null && r.getSpecialRequests().startsWith(marker));
+        if (alreadySeeded) {
+            return;
+        }
+
+        LocalDate today = LocalDate.now();
+        LocalDate checkIn = today.minusDays(2);
+        LocalDate checkOut = today;
+
+        Room room = roomRepository.findAll().stream()
+                .filter(candidate -> !reservationRepository.hasRoomOverlapExcludingReservation(
+                        candidate.getId(), checkIn, checkOut, -1L))
+                .findFirst()
+                .orElse(null);
+        List<Customer> customers = customerRepository.findAll();
+        List<Employee> employees = employeeRepository.findAll();
+
+        if (room == null || customers.isEmpty() || employees.isEmpty()) {
+            return;
+        }
+
+        Reservation reservation = new Reservation();
+        reservation.setCheckInDate(checkIn);
+        reservation.setCheckOutDate(checkOut);
+        reservation.setNumberOfGuests(Math.min(room.getCapacity(), 2));
+        reservation.setStatus(ReservationStatus.CHECKED_IN);
+        reservation.setPaymentStatus(PaymentStatus.UNPAID);
+        reservation.setSpecialRequests(marker + " Checked-in reservation ending today with partial payment");
+        reservation.setRoom(room);
+        reservation.setCustomer(customers.get(0));
+        reservation.setEmployee(employees.get(0));
+        reservationRepository.save(reservation);
+
+        BigDecimal totalCost = reservationManager.calculateTotalPrice(reservation);
+        if (totalCost.compareTo(BigDecimal.ZERO) <= 0) {
+            return;
+        }
+
+        Payment payment = new Payment();
+        payment.setAmount(totalCost.divide(new BigDecimal("2.00")));
+        payment.setMethod(PaymentMethod.CARD);
+        payment.setEmployee(employees.get(0));
+        payment.setReservation(reservation);
+        paymentRepository.save(payment);
+        reservation.setPaymentStatus(PaymentStatus.PARTIALLY_PAID);
+        reservationRepository.update(reservation);
     }
 
     private int resolveDemoYearForFebMar(LocalDate today) {
