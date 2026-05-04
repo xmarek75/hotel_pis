@@ -19,7 +19,7 @@ export default function RoomModal({roomId, onClose}) {
     capacity: room?.capacity ?? 2,
     pricePerNight: room?.pricePerNight ?? "",
     roomServiceIds: Array.isArray(room?.services) ? room.services.map(s => String(s.id)) : [],
-    // active: room?.active !== false,
+    active: room?.active !== false,
   });
 
   const [successMessage, setSuccessMessage] = useState("");
@@ -189,7 +189,7 @@ export default function RoomModal({roomId, onClose}) {
               )}
             </fieldset>
 
-            {/* {roomId ? (
+            {roomId && (
               <label className="room-active-toggle reservation-form-grid__full">
                 <input
                   type="checkbox"
@@ -198,7 +198,7 @@ export default function RoomModal({roomId, onClose}) {
                 />
                 <span>Pokoj je aktivní</span>
               </label>
-            ) : null} */}
+            )}
           </div>
 
           {(mutationError || validationError) && (
